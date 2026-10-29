@@ -1,32 +1,41 @@
 {
   "projectId": "proj-life-piggy-bank",
   "projectName": "Life-Piggy-Bank 人生储蓄罐与双代币自律激励全栈系统",
-  "description": "面向个人自律(A分)与伙伴互勉(B分)的双代币全栈自律养成与储蓄应用 (当前阶段: 提测验收与预发布)",
-  "version": "1.0.0-rc1",
+  "description": "基于 8 大业务模块容器与 33 项细分 UML 用例 (Use Case) / 用户故事的全生命周期任务状态电路网",
+  "version": "1.0.0-rc2",
   "stage": "staging_review",
   "perspectives": [
     {
       "viewId": "view-all",
-      "name": "全域架构拓扑 (All)",
-      "description": "项目全量 10 项任务节点与物理电路总网",
+      "name": "全域 UML 架构总网 (All 33 UC)",
+      "description": "8 大业务模块与 33 项细分用例全拓扑物理电路",
       "icon": "Layers",
       "includeTags": [],
       "includeNodeTypes": [],
       "bypassUnmatched": false
     },
     {
-      "viewId": "view-flutter",
-      "name": "Flutter 移动端视角 (Alice)",
-      "description": "关注手风琴树形卡片、心得持久化、窄屏 0px 溢出与状态联动",
-      "icon": "Smartphone",
-      "includeTags": ["frontend", "mobile", "flutter"],
+      "viewId": "view-recipient",
+      "name": "自律践行者/执行人视角 (Recipient)",
+      "description": "聚焦个人自律习惯(A分)、打卡心得、个人心愿兑换与储蓄挑战罐",
+      "icon": "UserCheck",
+      "includeTags": ["actor_recipient", "self_discipline", "privacy"],
       "includeNodeTypes": ["feature", "component"],
       "bypassUnmatched": true
     },
     {
-      "viewId": "view-ledger",
-      "name": "金融分账与架构视角 (Bob)",
-      "description": "关注 A/B 双代币隔离、SQLAlchemy 行级排他锁与周期滚动",
+      "viewId": "view-giver",
+      "name": "激励伙伴/发行人视角 (Giver)",
+      "description": "聚焦他律任务发布、审批发奖裁决、专属B分商品上架与履约核销",
+      "icon": "Award",
+      "includeTags": ["actor_giver", "approval", "fulfillment"],
+      "includeNodeTypes": ["feature", "api"],
+      "bypassUnmatched": true
+    },
+    {
+      "viewId": "view-ledger-core",
+      "name": "金融账本与底层事务视角 (Backend)",
+      "description": "聚焦 A/B 双代币隔离、行级排他锁、防双花防透支与幂等控制",
       "icon": "Database",
       "includeTags": ["backend", "ledger", "security"],
       "includeNodeTypes": ["api", "feature"],
@@ -34,210 +43,374 @@
     },
     {
       "viewId": "view-qa-gate",
-      "name": "QA 质量门禁视角 (Carol)",
-      "description": "关注 64 项 BDD 用户故事自动化回归、防双花渗透与契约断言",
+      "name": "QA 质量门禁与BDD验收 (Carol)",
+      "description": "聚焦 64 项 BDD 用户故事自动化回归、四级质量门禁与端到端切片验证",
       "icon": "CheckSquare",
-      "includeTags": ["qa", "bdd", "contract"],
-      "includeNodeTypes": ["case", "api"],
-      "bypassUnmatched": true
-    },
-    {
-      "viewId": "view-product",
-      "name": "双代币博弈机制视角 (PM)",
-      "description": "关注自律 A 分与伙伴互勉 B 分的博弈流转与商城闭环",
-      "icon": "Coins",
-      "includeTags": ["product", "game_theory"],
-      "includeNodeTypes": ["feature"],
+      "includeTags": ["qa", "bdd", "gate"],
+      "includeNodeTypes": ["case", "api", "feature"],
       "bypassUnmatched": true
     }
   ],
   "nodes": [
     {
-      "nodeId": "T01",
-      "parentId": null,
+      "nodeId": "UC-0101",
+      "parentId": "MOD-01",
       "nodeType": "feature",
-      "name": "用户鉴权与账号记忆 (UUID体系)",
-      "description": "JWT 鉴权、离线单机沙箱、多账号登录历史持久化（本地记录最近 10 个常用账号）与快捷切换",
-      "tags": ["frontend", "backend", "security", "core_path"],
-      "assignRole": "fullstack",
-      "assignee": "Alice + Bob",
+      "name": "用户注册/登录与 JWT 令牌发放",
+      "description": "用户名、昵称与密码注册并安全登录，获取具备时效的 HS256 JWT Token",
+      "tags": ["actor_recipient", "actor_giver", "backend", "security", "core_path"],
+      "assignRole": "backend_dev",
+      "assignee": "Bob",
       "status": "review_pass",
       "deps": [],
       "acceptanceCriteria": [
-        "系统严禁使用纯用户名做外键，所有积分、商品、任务指派必须绑定真实 UUID",
-        "多账号登录历史持久化 (SharedPreferences)，支持下拉切换与单项清理",
-        "单机离线沙箱数据与云端环境隔离"
+        "返回 HTTP 200 及合法 Token，载荷含真实用户 UUID 及过期时间",
+        "用户名唯一性校验，重复注册返回 409 auth.username_exists",
+        "密码采用 bcrypt 哈希加盐，错误登录有明确计数及提示"
       ],
-      "estimateHours": 16.0,
-      "actualHours": 15.0,
-      "outputs": [
-        "backend/app/auth/jwt_handler.py",
-        "frontend/lib/services/account_history_service.dart"
-      ],
+      "estimateHours": 8.0,
+      "actualHours": 7.5,
+      "outputs": ["backend/app/auth/jwt_handler.py"],
       "review": {
         "logicVerified": true,
         "logicVerifiedBy": "backend/tests/test_auth_slice.py",
         "humanSignOff": true,
-        "humanSignOffBy": "PM / 架构师",
+        "humanSignOffBy": "架构师",
         "comments": ["UUID 基建已冻结，安全合规达标"]
       }
     },
     {
-      "nodeId": "T02",
-      "parentId": null,
+      "nodeId": "UC-0102",
+      "parentId": "MOD-01",
       "nodeType": "feature",
-      "name": "伙伴邀请与动态角色解耦网络",
-      "description": "定向邀请与双向确认机制，动态判定我是发行方 (giver) 还是执行方 (recipient)",
-      "tags": ["frontend", "backend", "product", "game_theory"],
-      "assignRole": "fullstack",
-      "assignee": "Alice + Bob",
-      "status": "review_pass",
-      "deps": ["T01"],
-      "acceptanceCriteria": [
-        "解耦传统家庭刻板身份，支持双向角色自由切换",
-        "必须双方建立 Active 绑定关系，前端才允许创建 B 类任务并指派",
-        "同名用户消歧与防重邀请保护机制"
-      ],
-      "estimateHours": 14.0,
-      "actualHours": 13.5,
-      "outputs": [
-        "backend/app/services/partnership_service.py",
-        "frontend/lib/views/partnership_dialog.dart"
-      ],
-      "review": {
-        "logicVerified": true,
-        "logicVerifiedBy": "backend/tests/test_family_tasks_flow.py",
-        "humanSignOff": true,
-        "humanSignOffBy": "PM",
-        "comments": ["伙伴关系双向流转跑顺，角色解耦正常"]
-      }
-    },
-    {
-      "nodeId": "T03",
-      "parentId": null,
-      "nodeType": "api",
-      "name": "双代币分账账本引擎与行级排他锁",
-      "description": "个人 A 积分绝对私有；按发行人严格分立独立 B 积分账本，行级排他锁防双花与防穿透",
-      "tags": ["backend", "ledger", "qa", "contract"],
-      "assignRole": "backend_dev",
-      "assignee": "Bob",
-      "status": "review_pass",
-      "deps": ["T01"],
-      "acceptanceCriteria": [
-        "执行人同时拥有发行人 X 和 Y 的 B 分时，两本账严格隔离，余额互不混用",
-        "所有积分写操作在单一 DB 事务中完成，避免负数透支与并发重放",
-        "409 Conflict 必须返回机器错误码 (如 ledger.insufficient_balance)"
-      ],
-      "externalBinding": {
-        "system": "pytest_runner",
-        "targetType": "unit_slice",
-        "targetId": "backend/tests/test_ledger.py",
-        "meta": { "totalCases": 48, "coverage": "99.2%" }
-      },
-      "estimateHours": 24.0,
-      "actualHours": 22.0,
-      "outputs": [
-        "backend/app/models/ledger.py",
-        "backend/app/services/ledger_transaction_manager.py"
-      ],
-      "review": {
-        "logicVerified": true,
-        "logicVerifiedBy": "QA Carol (防穿透与并发切片用例)",
-        "humanSignOff": true,
-        "humanSignOffBy": "架构师",
-        "comments": ["【金融核心】行级排他锁在 200 并发压测下零穿透、零负数！"]
-      }
-    },
-    {
-      "nodeId": "T04",
-      "parentId": null,
-      "nodeType": "feature",
-      "name": "他律任务指派、凭证提交与审批闭环",
-      "description": "发行方发布 B 任务；执行方打卡并提交凭证；发行方待审批列表处理（批准加分或驳回并留痕）",
-      "tags": ["frontend", "backend", "product", "qa", "game_theory"],
-      "assignRole": "fullstack",
-      "assignee": "Alice + Bob",
-      "status": "logic_verified",
-      "deps": ["T02", "T03"],
-      "acceptanceCriteria": [
-        "POST /api/v1/tasks/approvals/{id}/approve 批准后返回最新 B 分快照",
-        "驳回必须强制填写理由，执行方可查看原因并版本递增重提",
-        "执行方不可审批自己领取的 B 任务 (防自导自演)"
-      ],
-      "externalBinding": {
-        "system": "pytest_runner",
-        "targetType": "api_test",
-        "targetId": "backend/tests/test_tasks_slice.py",
-        "meta": {
-          "endpoint": "POST /api/v1/tasks/approvals/{instance_id}/approve",
-          "method": "POST"
-        }
-      },
-      "estimateHours": 20.0,
-      "actualHours": 18.0,
-      "outputs": [
-        "backend/app/routers/approvals.py",
-        "frontend/lib/views/approval_center_page.dart"
-      ],
-      "review": {
-        "logicVerified": true,
-        "logicVerifiedBy": "test_tasks_slice.py (18/18 passed)",
-        "humanSignOff": false,
-        "comments": [
-          "【自动化切片通过】审批发奖与驳回流转 100% 验证通过，等待 PM 进行真机交互体验终审！"
-        ]
-      }
-    },
-    {
-      "nodeId": "T05",
-      "parentId": null,
-      "nodeType": "component",
-      "name": "自律手风琴树形卡片与 100% 通关归档",
-      "description": "主线内嵌支线树形卡片；实时计算通关百分比进度条；支线三层分流；100% 通关目标自动沉淀归档 (TASK-28)",
-      "tags": ["frontend", "mobile", "flutter", "product"],
+      "name": "本地离线单机沙箱环境初始化",
+      "description": "在无网或飞行环境下进入本地单机离线沙箱，Mock 状态托管，不受网络阻断",
+      "tags": ["actor_recipient", "frontend", "flutter", "self_discipline"],
       "assignRole": "flutter_dev",
       "assignee": "Alice",
       "status": "review_pass",
-      "deps": ["T01"],
+      "deps": ["UC-0101"],
       "acceptanceCriteria": [
-        "在 Android 720p（360dp 窄屏）环境下，手风琴卡片 RenderFlex 溢出绝对为 0px (消除19px溢出)",
-        "主支线树形嵌套支持折叠展开，完成时平滑滚动到底部归档区",
-        "区分自律践行 A 任务与他人指派 B 任务的视觉铭牌"
+        "不产生任何网络报错，初始 A 分为 230 分",
+        "自律任务与储蓄罐可离线打卡",
+        "涉及跨设备的伙伴邀请与在线审批入口优雅禁用并告知"
       ],
-      "externalBinding": {
-        "system": "flutter_test",
-        "targetType": "widget_test",
-        "targetId": "test/task_tree_template_test.dart"
-      },
-      "estimateHours": 18.0,
-      "actualHours": 17.5,
-      "outputs": [
-        "frontend/lib/widgets/tree_template_card.dart",
-        "frontend/lib/controllers/task_tree_controller.dart"
-      ],
+      "estimateHours": 6.0,
+      "actualHours": 5.5,
+      "outputs": ["frontend/lib/services/offline_sandbox_service.dart"],
       "review": {
         "logicVerified": true,
-        "logicVerifiedBy": "task_tree_template_test.dart",
         "humanSignOff": true,
-        "humanSignOffBy": "PM / UI 设计师",
-        "comments": ["窄屏 0px 溢出修复，手风琴折叠动画丝滑"]
+        "comments": ["离线 Mock 逻辑完备，单机体验丝滑"]
       }
     },
     {
-      "nodeId": "T06",
-      "parentId": null,
+      "nodeId": "UC-0103",
+      "parentId": "MOD-01",
+      "nodeType": "component",
+      "name": "多账号登录历史持久化与快捷切换",
+      "description": "自动记录最近 10 个常用账号，登录页输入框下拉弹窗一键选填免输",
+      "tags": ["actor_recipient", "actor_giver", "frontend", "flutter"],
+      "assignRole": "flutter_dev",
+      "assignee": "Alice",
+      "status": "review_pass",
+      "deps": ["UC-0101"],
+      "acceptanceCriteria": [
+        "SharedPreferences 持久化存储最近 10 个常用账号并置顶",
+        "单元测试 account_history_test.dart 6 项测试全部通过",
+        "冷启动后退出登录，下拉弹窗能准确渲染历史列表并回填"
+      ],
+      "externalBinding": {
+        "system": "flutter_test",
+        "targetType": "unit_test",
+        "targetId": "test/account_history_test.dart"
+      },
+      "estimateHours": 8.0,
+      "actualHours": 7.0,
+      "outputs": ["frontend/lib/services/account_history_service.dart"],
+      "review": {
+        "logicVerified": true,
+        "humanSignOff": true,
+        "comments": ["多账号下拉切换自测 100% 通过"]
+      }
+    },
+    {
+      "nodeId": "UC-0104",
+      "parentId": "MOD-01",
       "nodeType": "feature",
-      "name": "自律打卡心得备注全链路贯通 (TASK-31)",
-      "description": "打卡弹窗选填心得备注 (0~5000字)，打卡成功后心得写入动态流，且严格保障私密隔离",
-      "tags": ["frontend", "backend", "flutter", "security"],
+      "name": "账号历史单项清理与全量登出",
+      "description": "从本机历史列表中单项删除临时账号，登出彻底清理内存与 Token",
+      "tags": ["actor_recipient", "actor_giver", "frontend", "security"],
+      "assignRole": "flutter_dev",
+      "assignee": "Alice",
+      "status": "review_pass",
+      "deps": ["UC-0103"],
+      "acceptanceCriteria": [
+        "本地 SharedPreferences 中目标账号键值彻底移除",
+        "登出后禁止通过物理返回键回退至受保护的业务主界面",
+        "最后一项删除后下拉箭头自动隐去"
+      ],
+      "estimateHours": 4.0,
+      "actualHours": 3.5,
+      "outputs": ["frontend/lib/views/login_page.dart"],
+      "review": { "logicVerified": true, "humanSignOff": true }
+    },
+    {
+      "nodeId": "UC-0201",
+      "parentId": "MOD-02",
+      "nodeType": "feature",
+      "name": "通过用户名定向发起伙伴邀请",
+      "description": "输入目标用户名，明确勾选发行人或执行人契约方向，生成 pending 记录",
+      "tags": ["actor_giver", "actor_recipient", "backend", "approval"],
+      "assignRole": "backend_dev",
+      "assignee": "Bob",
+      "status": "review_pass",
+      "deps": ["UC-0101"],
+      "acceptanceCriteria": [
+        "生成 status=pending 的 relationship 契约记录",
+        "禁止邀请自己或不存在的用户 (400 Bad Request)",
+        "被邀请人动态流中收到 relationship.invite 通知事件"
+      ],
+      "estimateHours": 8.0,
+      "actualHours": 7.5,
+      "outputs": ["backend/app/services/partnership_service.py"],
+      "review": { "logicVerified": true, "humanSignOff": true }
+    },
+    {
+      "nodeId": "UC-0202",
+      "parentId": "MOD-02",
+      "nodeType": "feature",
+      "name": "接受/驳回伙伴邀请与状态机流转",
+      "description": "受邀人查验约定角色并有权选择接受(active并初始化B账本)或驳回(rejected)",
+      "tags": ["actor_recipient", "actor_giver", "backend", "approval"],
+      "assignRole": "fullstack",
+      "assignee": "Alice + Bob",
+      "status": "review_pass",
+      "deps": ["UC-0201"],
+      "acceptanceCriteria": [
+        "点击接受，relationships.status 变更为 active",
+        "只有受邀人本人有权执行操作，发起人不可自审自批 (403 拦截)",
+        "自动为双方初始化对应的 B 代币分账账本子账户"
+      ],
+      "estimateHours": 10.0,
+      "actualHours": 9.5,
+      "outputs": ["frontend/lib/views/partnership_dialog.dart"],
+      "review": { "logicVerified": true, "humanSignOff": true }
+    },
+    {
+      "nodeId": "UC-0203",
+      "parentId": "MOD-02",
+      "nodeType": "feature",
+      "name": "动态解耦身份识别 (Giver vs Recipient)",
+      "description": "解耦传统刻板角色，依据具体的契约方向动态赋予发布/审批或执行打卡权限",
+      "tags": ["actor_giver", "actor_recipient", "backend", "security"],
+      "assignRole": "backend_dev",
+      "assignee": "Bob",
+      "status": "review_pass",
+      "deps": ["UC-0202"],
+      "acceptanceCriteria": [
+        "依据 giver_id / recipient_id 动态赋权，非发行人操作审批抛出 403 Forbidden",
+        "严禁通过本地存储的角文字符串伪造角色身份",
+        "同一用户在不同契约中可分别担任发行方或执行方"
+      ],
+      "estimateHours": 8.0,
+      "actualHours": 8.0,
+      "outputs": ["backend/app/auth/permission_guard.py"],
+      "review": { "logicVerified": true, "humanSignOff": true }
+    },
+    {
+      "nodeId": "UC-0204",
+      "parentId": "MOD-02",
+      "nodeType": "feature",
+      "name": "解除伙伴契约与历史数据归档",
+      "description": "关系终止时解除绑定，阻断新指派与新兑换，同时完整保留历史足迹与对账流水",
+      "tags": ["actor_giver", "actor_recipient", "backend"],
+      "assignRole": "fullstack",
+      "assignee": "Alice + Bob",
+      "status": "review_pass",
+      "deps": ["UC-0202"],
+      "acceptanceCriteria": [
+        "若存在未履约扣款的进行中订单，阻断解绑并提示处理",
+        "解绑后双方待办流中对方任务不再展示",
+        "历史积分流水与快照完整保留，对账差额为 0"
+      ],
+      "estimateHours": 6.0,
+      "actualHours": 5.0,
+      "outputs": ["backend/app/routers/partnerships.py"],
+      "review": { "logicVerified": true, "humanSignOff": true }
+    },
+    {
+      "nodeId": "UC-0301",
+      "parentId": "MOD-03",
+      "nodeType": "api",
+      "name": "个人 A 积分账本初始化与自律奖励结算",
+      "description": "高精度 Decimal 私有账本，打卡直接入账，不依赖任何人审批，他人无权划扣",
+      "tags": ["actor_recipient", "backend", "ledger", "self_discipline"],
+      "assignRole": "backend_dev",
+      "assignee": "Bob",
+      "status": "review_pass",
+      "deps": ["UC-0101"],
+      "acceptanceCriteria": [
+        "账本采用高精度定点数 Decimal(10,2)，杜绝浮点精度丢失",
+        "流水表 balance_before + delta == balance_after 严格自洽",
+        "A 积分绝对私有，他人接口无权划扣"
+      ],
+      "estimateHours": 12.0,
+      "actualHours": 11.0,
+      "outputs": ["backend/app/models/ledger.py"],
+      "review": { "logicVerified": true, "humanSignOff": true }
+    },
+    {
+      "nodeId": "UC-0302",
+      "parentId": "MOD-03",
+      "nodeType": "api",
+      "name": "按发行人严格分立的独立 B 积分账本维护",
+      "description": "执行人拥有多个伙伴时，持有的 B 积分按 issuer_id 分立独立分户，清晰独立展示",
+      "tags": ["actor_recipient", "backend", "ledger"],
+      "assignRole": "backend_dev",
+      "assignee": "Bob",
+      "status": "review_pass",
+      "deps": ["UC-0202", "UC-0301"],
+      "acceptanceCriteria": [
+        "GET /users/me 结构体中 balances_b 严格按 issuer_id 分组列出",
+        "严禁合并统计不同发行人的 B 积分作为单一数值展示",
+        "多发行人账本相互隔离，互不穿透"
+      ],
+      "estimateHours": 10.0,
+      "actualHours": 9.5,
+      "outputs": ["backend/app/services/ledger_service.py"],
+      "review": { "logicVerified": true, "humanSignOff": true }
+    },
+    {
+      "nodeId": "UC-0303",
+      "parentId": "MOD-03",
+      "nodeType": "api",
+      "name": "多发行人 B 积分防混淆与防穿透隔离机制",
+      "description": "兑换发行人 A 的商品时，绝对不能消耗发行人 B 的代币，余额不足直接拦截",
+      "tags": ["actor_recipient", "backend", "ledger", "security"],
+      "assignRole": "backend_dev",
+      "assignee": "Bob",
+      "status": "review_pass",
+      "deps": ["UC-0302"],
+      "acceptanceCriteria": [
+        "即使在 B 处有 1000 分，若 A 处不足 50 分，兑换 A 商品拦截并报 409",
+        "扣款严格限定在当前 issuer_id 分户，无跨户串账",
+        "单元测试多发行人防混淆切片通过率 100%"
+      ],
+      "estimateHours": 12.0,
+      "actualHours": 11.5,
+      "outputs": ["backend/tests/test_ledger.py"],
+      "review": { "logicVerified": true, "humanSignOff": true }
+    },
+    {
+      "nodeId": "UC-0304",
+      "parentId": "MOD-03",
+      "nodeType": "api",
+      "name": "账本行级排他锁防双花与防超扣事务控制",
+      "description": "多端并发或弱网连击时，SELECT ... FOR UPDATE 行级锁杜绝代币透支成负数",
+      "tags": ["backend", "ledger", "security", "gate"],
+      "assignRole": "backend_dev",
+      "assignee": "Bob",
+      "status": "review_pass",
+      "deps": ["UC-0301", "UC-0302"],
+      "acceptanceCriteria": [
+        "多协程并发扣款压测下，余额永不出现负数",
+        "命中同一 idempotency_key 幂等返回原结果，不发生二次扣除",
+        "积分流水总对账差额永远为 0"
+      ],
+      "externalBinding": {
+        "system": "pytest_runner",
+        "targetType": "concurrency_test",
+        "targetId": "backend/tests/test_ledger.py"
+      },
+      "estimateHours": 16.0,
+      "actualHours": 15.0,
+      "outputs": ["backend/app/services/ledger_transaction_manager.py"],
+      "review": {
+        "logicVerified": true,
+        "logicVerifiedBy": "QA Carol (200 并发压测)",
+        "humanSignOff": true,
+        "comments": ["行级锁与幂等事务在 200 并发下零双花、零负数！"]
+      }
+    },
+    {
+      "nodeId": "UC-0401",
+      "parentId": "MOD-04",
+      "nodeType": "feature",
+      "name": "主线内嵌支线树形任务模板创建 (日/周/月)",
+      "description": "为一个宏大的主线大目标拆解多条具体的支线小任务，设置周期频次与通关大奖",
+      "tags": ["actor_recipient", "frontend", "flutter", "self_discipline"],
+      "assignRole": "flutter_dev",
+      "assignee": "Alice",
+      "status": "review_pass",
+      "deps": ["UC-0101"],
+      "acceptanceCriteria": [
+        "一次性原子写入父模板与子任务模板，外键 parent_id 正确指向",
+        "支线任务禁止再递归嵌套下级支线 (防止无限层级，拦截 400)",
+        "手风琴组件树形渲染层级清晰"
+      ],
+      "estimateHours": 14.0,
+      "actualHours": 13.0,
+      "outputs": ["frontend/lib/widgets/tree_template_card.dart"],
+      "review": { "logicVerified": true, "humanSignOff": true }
+    },
+    {
+      "nodeId": "UC-0402",
+      "parentId": "MOD-04",
+      "nodeType": "component",
+      "name": "支线任务状态三层分流 (未完成/待审/已完成)",
+      "description": "树形卡片内部智能排序：顶部高亮待办，中部待审，底部折叠收纳已完成降噪",
+      "tags": ["actor_recipient", "frontend", "flutter"],
+      "assignRole": "flutter_dev",
+      "assignee": "Alice",
+      "status": "review_pass",
+      "deps": ["UC-0401"],
+      "acceptanceCriteria": [
+        "单元测试 task_tree_template_test.dart 确认未完成 → 待审 → 已完成稳定分层",
+        "打卡完成后在列表中的物理顺序确定，不出现抖动跳动",
+        "已完成项呈现浅灰静音视觉风格"
+      ],
+      "estimateHours": 8.0,
+      "actualHours": 7.5,
+      "outputs": ["frontend/lib/widgets/tree_template_card.dart"],
+      "review": { "logicVerified": true, "humanSignOff": true }
+    },
+    {
+      "nodeId": "UC-0403",
+      "parentId": "MOD-04",
+      "nodeType": "component",
+      "name": "100% 通关目标自动沉淀归档至底部已完成区",
+      "description": "主线支线全部达成且领取主奖励后，卡片自动移出活跃流，沉淀到底部折叠归档条",
+      "tags": ["actor_recipient", "frontend", "flutter"],
+      "assignRole": "flutter_dev",
+      "assignee": "Alice",
+      "status": "review_pass",
+      "deps": ["UC-0401", "UC-0402"],
+      "acceptanceCriteria": [
+        "活跃待办流不再渲染已通关卡片，底部归档计数准确累加",
+        "未达 100% 达成的任务严禁过早归档",
+        "支持一键展开回顾历史荣光与再次挑战"
+      ],
+      "estimateHours": 6.0,
+      "actualHours": 5.5,
+      "outputs": ["frontend/lib/views/tasks_view.dart"],
+      "review": { "logicVerified": true, "humanSignOff": true }
+    },
+    {
+      "nodeId": "UC-0404",
+      "parentId": "MOD-04",
+      "nodeType": "feature",
+      "name": "自律打卡心得选填 (0~5000字) 与持久化 (TASK-31)",
+      "description": "打卡弹窗选填心得备注，可写感悟亦可直接秒过，文本持久化落库并写入动态流",
+      "tags": ["actor_recipient", "self_discipline", "privacy", "flutter"],
       "assignRole": "fullstack",
       "assignee": "Alice + Bob",
       "status": "logic_verified",
-      "deps": ["T05"],
+      "deps": ["UC-0401"],
       "acceptanceCriteria": [
-        "POST /api/v1/tasks/assignments/{id}/submit 接收 proof_text 字段并持久化",
-        "自律打卡心得 (is_self_task=true) 在动态流拉取中，非本人访问必须由后端屏蔽，严防隐私泄露",
-        "心得超长文本折叠展开与换行排版正常"
+        "POST /api/v1/tasks/assignments/{id}/submit 接收 proof_text 选填字段",
+        "上限 5000 字符，超长时前端限制并统计字数，空白字符自动 trim",
+        "task_submissions.proof_text 完整落盘，单元切片通过"
       ],
       "externalBinding": {
         "system": "pytest_and_flutter_test",
@@ -245,7 +418,7 @@
         "targetId": "test/task_vertical_slice_test.dart"
       },
       "estimateHours": 12.0,
-      "actualHours": 10.0,
+      "actualHours": 10.5,
       "outputs": [
         "backend/app/routers/task_submissions.py",
         "frontend/lib/widgets/task_proof_dialog.dart"
@@ -254,26 +427,196 @@
         "logicVerified": true,
         "logicVerifiedBy": "task_vertical_slice_test.dart",
         "humanSignOff": false,
-        "comments": [
-          "【切片验证完成】proof_text 成功落库且私密过滤断言通过，等待 PM 确认多端文案展现"
-        ]
+        "comments": ["【客观逻辑已跑通】proof_text 写入与读取断言全部通过，等待 PM 确认多端排版！"]
       }
     },
     {
-      "nodeId": "T07",
-      "parentId": null,
+      "nodeId": "UC-0405",
+      "parentId": "MOD-04",
+      "nodeType": "component",
+      "name": "Android 720p (360dp 窄屏) 下的 0px 溢出适配 (TASK-28)",
+      "description": "标题、进度条与操作按钮自适应布局，在窄屏百元机上彻底消除 19px 溢出黄色报错",
+      "tags": ["actor_recipient", "frontend", "flutter", "mobile"],
+      "assignRole": "flutter_dev",
+      "assignee": "Alice",
+      "status": "review_pass",
+      "deps": ["UC-0401"],
+      "acceptanceCriteria": [
+        "在物理宽度 360dp 下，手风琴卡片 RenderFlex 溢出绝对为 0px",
+        "长标题自适应省略 (ellipsis)，操作按钮紧凑化为 24x24dp",
+        "自动化 UI 巡检控制台 0 overflow 异常"
+      ],
+      "estimateHours": 10.0,
+      "actualHours": 9.5,
+      "outputs": ["frontend/lib/widgets/tree_template_card.dart"],
+      "review": {
+        "logicVerified": true,
+        "humanSignOff": true,
+        "comments": ["真机测试 360dp 窄屏 0px 溢出通过！"]
+      }
+    },
+    {
+      "nodeId": "UC-0501",
+      "parentId": "MOD-05",
       "nodeType": "feature",
-      "name": "个人心愿与伙伴商城兑换履约闭环",
-      "description": "A 分心愿即时扣除；B 分商品预扣、发行人履约中心发放或驳回原路退款",
-      "tags": ["frontend", "backend", "ledger", "product", "game_theory"],
+      "name": "发行人创建 B 任务指派给执行人",
+      "description": "发行方创建有奖有罚的 B 类任务模板指派给活跃伙伴，设定基础奖励与逾期违约扣罚",
+      "tags": ["actor_giver", "approval", "backend", "game_theory"],
+      "assignRole": "fullstack",
+      "assignee": "Alice + Bob",
+      "status": "review_pass",
+      "deps": ["UC-0202"],
+      "acceptanceCriteria": [
+        "只能指派给已接受绑定的伙伴，陌生人禁止指派 (403 拦截)",
+        "被指派人待办流中实时出现该任务，明确标牌由伙伴发布 (+20 B)",
+        "支持设定截止日期与可选惩罚规则"
+      ],
+      "estimateHours": 10.0,
+      "actualHours": 9.0,
+      "outputs": ["backend/app/routers/tasks.py"],
+      "review": { "logicVerified": true, "humanSignOff": true }
+    },
+    {
+      "nodeId": "UC-0502",
+      "parentId": "MOD-05",
+      "nodeType": "feature",
+      "name": "执行人提交打卡凭证至待审批队列",
+      "description": "执行人完成他律任务后输入完成说明或凭证，状态翻转为 reviewing 等待对方审核",
+      "tags": ["actor_recipient", "actor_giver", "approval", "flutter"],
+      "assignRole": "fullstack",
+      "assignee": "Alice + Bob",
+      "status": "logic_verified",
+      "deps": ["UC-0501"],
+      "acceptanceCriteria": [
+        "提交后任务实例状态变更为 reviewing，执行人不可重复打卡",
+        "发行人的待审批中心红点提示计数准确 +1",
+        "执行人无权越权自审该任务 (403 拦截)"
+      ],
+      "externalBinding": {
+        "system": "pytest_runner",
+        "targetType": "api_test",
+        "targetId": "backend/tests/test_tasks_slice.py"
+      },
+      "estimateHours": 8.0,
+      "actualHours": 7.0,
+      "outputs": ["frontend/lib/widgets/task_proof_dialog.dart"],
+      "review": {
+        "logicVerified": true,
+        "logicVerifiedBy": "test_tasks_slice.py",
+        "humanSignOff": false,
+        "comments": ["凭证流转断言通过，等待 PM 进行真机交互终审"]
+      }
+    },
+    {
+      "nodeId": "UC-0503",
+      "parentId": "MOD-05",
+      "nodeType": "api",
+      "name": "发行人审批通过并触发 B 积分账本到账",
+      "description": "发行人在待审批中心一键点击批准，在单一 DB 事务中将任务置为 done 并向对方充值 B 分",
+      "tags": ["actor_giver", "approval", "backend", "ledger"],
+      "assignRole": "backend_dev",
+      "assignee": "Bob",
+      "status": "logic_verified",
+      "deps": ["UC-0502", "UC-0302"],
+      "acceptanceCriteria": [
+        "POST /api/v1/tasks/approvals/{id}/approve 在同一个 DB 事务中完成",
+        "执行人在该发行人账下的 B 分准确增加对应奖励",
+        "审批成功后防连击，再次点击提示任务已审批 (409)"
+      ],
+      "externalBinding": {
+        "system": "pytest_runner",
+        "targetType": "api_test",
+        "targetId": "backend/tests/test_tasks_slice.py",
+        "meta": { "endpoint": "POST /api/v1/tasks/approvals/{instance_id}/approve" }
+      },
+      "estimateHours": 12.0,
+      "actualHours": 10.0,
+      "outputs": ["backend/app/routers/approvals.py"],
+      "review": {
+        "logicVerified": true,
+        "logicVerifiedBy": "test_tasks_slice.py (18/18 通过)",
+        "humanSignOff": false,
+        "comments": ["【自动化切片通过】加分与状态翻转 100% 验证通过，等待 PM 终审体验！"]
+      }
+    },
+    {
+      "nodeId": "UC-0504",
+      "parentId": "MOD-05",
+      "nodeType": "feature",
+      "name": "发行人驳回打卡 (必填理由，支持重提)",
+      "description": "凭证不合规时发行人驳回并附带修改理由；执行人查看到原因并递增版本重新打卡",
+      "tags": ["actor_giver", "actor_recipient", "approval"],
+      "assignRole": "fullstack",
+      "assignee": "Alice + Bob",
+      "status": "review_pass",
+      "deps": ["UC-0502"],
+      "acceptanceCriteria": [
+        "驳回必须强制填写理由，禁止空理由提交",
+        "执行人页面展示驳回横幅与驳回原因，支持再次重新提交",
+        "再次提交时版本号自增 submit_version + 1，保留审核历史快照"
+      ],
+      "estimateHours": 10.0,
+      "actualHours": 9.0,
+      "outputs": ["frontend/lib/views/approval_center_page.dart"],
+      "review": { "logicVerified": true, "humanSignOff": true }
+    },
+    {
+      "nodeId": "UC-0601",
+      "parentId": "MOD-06",
+      "nodeType": "feature",
+      "name": "个人 A 分心愿商品创建与即时扣分核销",
+      "description": "将心仪奖励上架为心愿，A 分攒够后自行兑换，原子扣分即刻达成，犒劳自己",
+      "tags": ["actor_recipient", "self_discipline", "fulfillment"],
+      "assignRole": "fullstack",
+      "assignee": "Alice + Bob",
+      "status": "review_pass",
+      "deps": ["UC-0301"],
+      "acceptanceCriteria": [
+        "心愿仅创建者本人可见，他人商城货架绝不展示",
+        "点击兑换原子扣除 A 积分并生成已完成订单",
+        "余额不足时兑换按钮置灰并提示"
+      ],
+      "estimateHours": 10.0,
+      "actualHours": 9.5,
+      "outputs": ["frontend/lib/views/wish_mall_page.dart"],
+      "review": { "logicVerified": true, "humanSignOff": true }
+    },
+    {
+      "nodeId": "UC-0602",
+      "parentId": "MOD-06",
+      "nodeType": "feature",
+      "name": "发行人上架专属 B 分商品 (库存与授权)",
+      "description": "上架由发行人出资或履约的奖励，设定价格、库存及指定可见兑换伙伴",
+      "tags": ["actor_giver", "fulfillment", "backend"],
+      "assignRole": "fullstack",
+      "assignee": "Alice + Bob",
+      "status": "review_pass",
+      "deps": ["UC-0202"],
+      "acceptanceCriteria": [
+        "被授权伙伴在商城能看到以该发行人命名的专属货架",
+        "不可指派给未绑定的陌生人",
+        "库存为 0 时不可再被兑换"
+      ],
+      "estimateHours": 12.0,
+      "actualHours": 11.0,
+      "outputs": ["backend/app/routers/shop.py"],
+      "review": { "logicVerified": true, "humanSignOff": true }
+    },
+    {
+      "nodeId": "UC-0603",
+      "parentId": "MOD-06",
+      "nodeType": "feature",
+      "name": "执行人预扣 B 积分发起商城兑换生成订单",
+      "description": "从指定发行人账本预扣 B 积分，库存减 1，生成待履约核销订单，幂等防双扣",
+      "tags": ["actor_recipient", "ledger", "fulfillment", "security"],
       "assignRole": "fullstack",
       "assignee": "Alice + Bob",
       "status": "deving",
-      "deps": ["T03", "T04"],
+      "deps": ["UC-0602", "UC-0302"],
       "acceptanceCriteria": [
-        "POST /api/v1/shop/items/{id}/redeem 支持幂等性校验 (idempotency_key)",
-        "余额不足时原子回滚并返回 409 shop.insufficient_balance",
-        "发行人驳回订单时，原路返还对应发行人账本的 B 积分并恢复库存"
+        "POST /api/v1/shop/items/{id}/redeem 携带 idempotency_key 防重放",
+        "余额不足原子回滚并返回 409 shop.insufficient_balance",
+        "订单落库为 pending_fulfillment 状态"
       ],
       "externalBinding": {
         "system": "pytest_runner",
@@ -281,93 +624,225 @@
         "targetId": "backend/tests/test_shop_slice.py",
         "meta": { "endpoint": "POST /api/v1/shop/items/{item_id}/redeem" }
       },
-      "estimateHours": 22.0,
-      "actualHours": 14.0,
-      "outputs": [
-        "backend/app/services/shop_order_service.py",
-        "frontend/lib/views/partner_shop_page.dart"
-      ],
+      "estimateHours": 16.0,
+      "actualHours": 12.0,
+      "outputs": ["backend/app/services/shop_order_service.py"],
       "review": {
         "logicVerified": false,
         "humanSignOff": false,
-        "comments": [
-          "【研发中】预扣与订单生成已完成，正在联调驳回原路退款与库存补偿事务"
-        ]
+        "comments": ["【研发施工中】预扣与单据生成已跑通，正在联调高并发幂等锁"]
       }
     },
     {
-      "nodeId": "T08",
-      "parentId": null,
+      "nodeId": "UC-0604",
+      "parentId": "MOD-06",
       "nodeType": "feature",
-      "name": "克制储蓄挑战罐与破功惩罚算法",
-      "description": "单一常驻冲动消费克制储蓄挑战；记录省钱存入行为；破功惩罚模式（实际金额/折半/归零）；连续天数",
-      "tags": ["frontend", "backend", "product"],
+      "name": "发行人履约中心发放商品并核销订单",
+      "description": "实际兑现承诺后，发行人在履约中心确认发放/核销，订单置为 fulfilled 完成闭环",
+      "tags": ["actor_giver", "fulfillment", "approval"],
+      "assignRole": "fullstack",
+      "assignee": "Alice + Bob",
+      "status": "deving",
+      "deps": ["UC-0603"],
+      "acceptanceCriteria": [
+        "已核销订单不可二次核销，非商品发行人无权核销此单据",
+        "订单状态更新为已履约，代币正式结算完毕",
+        "双方动态流收到履约完成通知"
+      ],
+      "estimateHours": 10.0,
+      "actualHours": 5.0,
+      "outputs": ["frontend/lib/views/fulfillment_center_page.dart"],
+      "review": { "logicVerified": false, "humanSignOff": false }
+    },
+    {
+      "nodeId": "UC-0605",
+      "parentId": "MOD-06",
+      "nodeType": "feature",
+      "name": "发行人驳回订单、原路退还对应 B 积分",
+      "description": "因故无法履约时驳回订单，在单一事务内订单置为 cancelled，代币原路退回并恢复库存",
+      "tags": ["actor_giver", "actor_recipient", "ledger", "fulfillment"],
+      "assignRole": "fullstack",
+      "assignee": "Alice + Bob",
+      "status": "deving",
+      "deps": ["UC-0603"],
+      "acceptanceCriteria": [
+        "退款必须原路返回原发行人账本分户，绝对不可退成 A 分或其他发行人代币",
+        "商品库存自动 +1，退款流水差额为 0",
+        "执行人动态流收到退款说明通知"
+      ],
+      "estimateHours": 14.0,
+      "actualHours": 7.0,
+      "outputs": ["backend/app/services/shop_refund_manager.py"],
+      "review": {
+        "logicVerified": false,
+        "humanSignOff": false,
+        "comments": ["【研发施工中】正在攻坚跨发行人原路退款事务补偿逻辑"]
+      }
+    },
+    {
+      "nodeId": "UC-0701",
+      "parentId": "MOD-07",
+      "nodeType": "feature",
+      "name": "创建冲动消费克制储蓄挑战目标",
+      "description": "设定具体的克制储蓄挑战目标金额、诱因描述与三种破功惩罚算法模式",
+      "tags": ["actor_recipient", "self_discipline"],
       "assignRole": "fullstack",
       "assignee": "Alice + Bob",
       "status": "review_pass",
-      "deps": ["T01"],
+      "deps": ["UC-0101"],
       "acceptanceCriteria": [
-        "破功扣罚支持三种模式计算：实际金额、折半扣除、进度归零",
-        "Streak 连续克制天数基于服务端时区基准防篡改",
-        "成果用途最终达成后生成归档海报数据"
+        "同一时期严格保持一个活跃挑战，避免目标分散失效",
+        "savings_challenges 表生成活跃记录，初始储蓄池余额为 0.00",
+        "选定破功惩罚模式：实际金额 / 折半扣除 / 进度清零"
       ],
-      "estimateHours": 14.0,
-      "actualHours": 13.0,
-      "outputs": [
-        "backend/app/routers/piggy_bank.py",
-        "frontend/lib/views/savings_challenge_card.dart"
-      ],
-      "review": {
-        "logicVerified": true,
-        "humanSignOff": true,
-        "comments": ["心理学储蓄模型跑通，破功惩罚公式自测合格"]
-      }
+      "estimateHours": 10.0,
+      "actualHours": 9.5,
+      "outputs": ["backend/app/routers/piggy_bank.py"],
+      "review": { "logicVerified": true, "humanSignOff": true }
     },
     {
-      "nodeId": "T09",
-      "parentId": null,
+      "nodeId": "UC-0702",
+      "parentId": "MOD-07",
+      "nodeType": "feature",
+      "name": "记录克制消费行为并存入虚拟金额",
+      "description": "抵制冲动消费时随手记录省下的金额与类别，储蓄池增加，自动维护连续天数",
+      "tags": ["actor_recipient", "self_discipline"],
+      "assignRole": "fullstack",
+      "assignee": "Alice + Bob",
+      "status": "review_pass",
+      "deps": ["UC-0701"],
+      "acceptanceCriteria": [
+        "储蓄池总额准确增加，生成 action=save 的克制日志",
+        "储蓄池金额为心理学虚拟激励存款，绝不托管真实银行资金",
+        "今日是否连续天数维护准确"
+      ],
+      "estimateHours": 8.0,
+      "actualHours": 7.5,
+      "outputs": ["frontend/lib/views/savings_challenge_card.dart"],
+      "review": { "logicVerified": true, "humanSignOff": true }
+    },
+    {
+      "nodeId": "UC-0703",
+      "parentId": "MOD-07",
+      "nodeType": "api",
+      "name": "冲动消费破功扣罚计算 (实际/折半/归零)",
+      "description": "破功时根据预设模型扣罚储蓄池金额：actual实际扣减、half折半、zeroOut归零",
+      "tags": ["actor_recipient", "backend", "self_discipline"],
+      "assignRole": "backend_dev",
+      "assignee": "Bob",
+      "status": "review_pass",
+      "deps": ["UC-0701"],
+      "acceptanceCriteria": [
+        "三种惩罚算法计算严格符合预期，扣减后最低为 0 元，永不出现负数",
+        "生成一条 action=yield 的破功警示日志",
+        "连续天数按模型相应折半或归零"
+      ],
+      "estimateHours": 10.0,
+      "actualHours": 9.0,
+      "outputs": ["backend/app/services/piggy_bank_calculator.py"],
+      "review": { "logicVerified": true, "humanSignOff": true }
+    },
+    {
+      "nodeId": "UC-0704",
+      "parentId": "MOD-07",
+      "nodeType": "feature",
+      "name": "连续克制天数 (Streak) 统计与成果用途登记",
+      "description": "真实自然日防作弊连续统计，目标达成后登记真实消费用途发票并归档",
+      "tags": ["actor_recipient", "self_discipline"],
+      "assignRole": "fullstack",
+      "assignee": "Alice + Bob",
+      "status": "review_pass",
+      "deps": ["UC-0702"],
+      "acceptanceCriteria": [
+        "Streak 连续克制天数基于服务端时区基准防篡改，跨日计算准确",
+        "储蓄池满额触发彩带通关动效",
+        "成果用途必须填写发票/凭证说明并归档"
+      ],
+      "estimateHours": 8.0,
+      "actualHours": 7.5,
+      "outputs": ["frontend/lib/views/savings_archive_dialog.dart"],
+      "review": { "logicVerified": true, "humanSignOff": true }
+    },
+    {
+      "nodeId": "UC-0801",
+      "parentId": "MOD-08",
       "nodeType": "component",
-      "name": "动态流审计与跨Tab全域免刷新状态联动",
-      "description": "跨 Tab 状态联动（任务审批后商城可用余额自动翻转）；时间线动态流记录自律足迹并严格隔离私密心得",
-      "tags": ["frontend", "mobile", "flutter"],
+      "name": "跨 Tab 状态联动 (审批后商城余额免刷新同构)",
+      "description": "任务页审批完成后，切换到商城 Tab 余额自动响应式同构显示为最新值，免下拉刷新",
+      "tags": ["actor_recipient", "actor_giver", "frontend", "flutter"],
       "assignRole": "flutter_dev",
       "assignee": "Alice",
       "status": "deving",
-      "deps": ["T04", "T06", "T07", "T08"],
+      "deps": ["UC-0503", "UC-0603"],
       "acceptanceCriteria": [
-        "审批中心通过打卡后，切换到商城 Tab 余额已自动刷新，无需用户手动下拉",
-        "自律日历成长足迹与动态流渲染性能在 1000+ 条目下保持 60fps",
-        "私密心得与公开打卡凭证在 UI 渲染层做绝对视觉隔离"
+        "审批通过打卡后全局状态总线触发 refreshProfile",
+        "切换到商城 Tab 顶部余额已自动同构翻转为最新",
+        "弱网环境下后台静默慢同步，UI 呈现零延迟脱节"
       ],
-      "estimateHours": 16.0,
-      "actualHours": 8.0,
-      "outputs": [
-        "frontend/lib/controllers/app_state_coordinator.dart",
-        "frontend/lib/views/timeline_feed_view.dart"
-      ],
+      "estimateHours": 12.0,
+      "actualHours": 6.0,
+      "outputs": ["frontend/lib/controllers/app_state_coordinator.dart"],
       "review": {
         "logicVerified": false,
         "humanSignOff": false,
-        "comments": [
-          "【研发中】全局 Coordinator 已打通任务与账本广播，正在收尾动态流私密过滤渲染"
-        ]
+        "comments": ["【研发施工中】全局 Coordinator 广播打通，正在优化跨组件生命周期"]
       }
     },
     {
-      "nodeId": "T10",
-      "parentId": null,
+      "nodeId": "UC-0802",
+      "parentId": "MOD-08",
+      "nodeType": "feature",
+      "name": "自律动态流生成与个人私密心得严格隔离",
+      "description": "任务打卡/审批事件沉淀至动态流；自律私密心得严格作用域隔离，伙伴绝对不可见",
+      "tags": ["actor_recipient", "actor_giver", "privacy", "security", "gate"],
+      "assignRole": "fullstack",
+      "assignee": "Alice + Bob",
+      "status": "deving",
+      "deps": ["UC-0404", "UC-0502"],
+      "acceptanceCriteria": [
+        "协作类事件公开可见；个人自律事件 (含心得) 仅本人可见 (visibility=private)",
+        "抓包直接请求动态接口，后端通过 SQL 作用域严格过滤他人心得",
+        "单元测试 test_permissions.py 验证私密事件隔离率 100%"
+      ],
+      "externalBinding": {
+        "system": "pytest_runner",
+        "targetType": "security_test",
+        "targetId": "backend/tests/test_permissions.py"
+      },
+      "estimateHours": 14.0,
+      "actualHours": 7.0,
+      "outputs": ["frontend/lib/views/timeline_feed_view.dart"],
+      "review": {
+        "logicVerified": false,
+        "humanSignOff": false,
+        "comments": ["【研发施工中】SQL 作用域拦截器已写好，正在完成前端隐私徽章渲染"]
+      }
+    },
+    {
+      "nodeId": "UC-0803",
+      "parentId": "MOD-08",
       "nodeType": "case",
-      "name": "64项 BDD 用户故事自动化验收与并发防双花渗透",
-      "description": "BDD 用户故事地图（64条用例）、四级质量门禁（L1~L4）、双端自动化测试回归与极端并发穿透",
-      "tags": ["qa", "bdd", "contract", "security"],
+      "name": "64项 BDD 自动化回归与四级质量门禁校验",
+      "description": "USER_STORY_MAP.md 64 项细分验收故事、192项 Pytest 与 320项 Flutter 测试全量校验",
+      "tags": ["qa", "bdd", "gate", "security"],
       "assignRole": "qa_architect",
       "assignee": "Carol (QA)",
       "status": "pending_dev",
-      "deps": ["T01", "T02", "T03", "T04", "T05", "T06", "T07", "T08", "T09"],
+      "deps": [
+        "UC-0101", "UC-0102", "UC-0103", "UC-0104",
+        "UC-0201", "UC-0202", "UC-0203", "UC-0204",
+        "UC-0301", "UC-0302", "UC-0303", "UC-0304",
+        "UC-0401", "UC-0402", "UC-0403", "UC-0404", "UC-0405",
+        "UC-0501", "UC-0502", "UC-0503", "UC-0504",
+        "UC-0601", "UC-0602", "UC-0603", "UC-0604", "UC-0605",
+        "UC-0701", "UC-0702", "UC-0703", "UC-0704",
+        "UC-0801", "UC-0802"
+      ],
       "acceptanceCriteria": [
-        "USER_STORY_MAP.md 中 64 项细分验收故事 100% 自动化覆盖并全部通过",
+        "64 项细分验收故事 100% 自动化覆盖并全部通过",
         "并发 200 线程连续请求兑换与审批，B 分账本零混用、零负数、零双花",
-        "architecture_boundaries_test.dart 架构边界 0 越权，Flutter 窄屏 0px 溢出"
+        "architecture_boundaries_test.dart 架构边界 0 越权，Flutter 窄屏 0px 溢出",
+        "门禁执行退出码为 0，生成不可篡改的测试执行审计摘要"
       ],
       "externalBinding": {
         "system": "test_runner_orchestrator",
@@ -386,7 +861,7 @@
         "logicVerified": false,
         "humanSignOff": false,
         "comments": [
-          "【质量门禁已就绪】正在等上游 T07 商城闭环与 T09 状态联动开发完成，前置一导通即全量开跑门禁！"
+          "【终极质量门禁】全量 32 项前置用例正在收尾，待全线导通瞬间开跑 L4 终审交付门禁！"
         ]
       }
     }
