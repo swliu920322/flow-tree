@@ -1,0 +1,246 @@
+{
+  "projectId": "proj-mall-001",
+  "projectName": "未来商城核心交易系统重构",
+  "description": "基于微服务与数据智能的新一代电商交易与分析链路",
+  "version": "1.0.0",
+  "perspectives": [
+    {
+      "viewId": "view-all",
+      "name": "全景综合视图",
+      "description": "完整项目任务与电路拓扑全貌",
+      "icon": "Layers",
+      "includeTags": [],
+      "includeNodeTypes": [],
+      "bypassUnmatched": false
+    },
+    {
+      "viewId": "view-analytics",
+      "name": "数据分析师视角",
+      "description": "关注用户行为埋点、实时数据清洗与转化率指标大盘",
+      "icon": "LineChart",
+      "includeTags": ["analytics", "data_pipeline", "metric"],
+      "includeNodeTypes": ["feature", "api", "data_pipeline"],
+      "bypassUnmatched": true
+    },
+    {
+      "viewId": "view-backend",
+      "name": "核心研发视角",
+      "description": "关注接口契约、微服务调用与数据库链路",
+      "icon": "Cpu",
+      "includeTags": ["backend", "core_api", "database"],
+      "includeNodeTypes": ["api", "feature"],
+      "bypassUnmatched": false
+    },
+    {
+      "viewId": "view-qa",
+      "name": "自动化测试视角",
+      "description": "关注具备自动化测试平台映射的接口与用例状态",
+      "icon": "CheckSquare",
+      "includeTags": ["test_coverage"],
+      "includeNodeTypes": ["api", "case"],
+      "bypassUnmatched": true
+    }
+  ],
+  "nodes": [
+    {
+      "nodeId": "node-db-schema",
+      "parentId": null,
+      "nodeType": "feature",
+      "name": "用户与订单底层数据建模",
+      "description": "PostgreSQL 分库分表与基础 DDL 设计",
+      "tags": ["backend", "database"],
+      "assignRole": "dba",
+      "assignee": "陈工",
+      "status": "review_pass",
+      "deps": [],
+      "acceptanceCriteria": ["DDL 执行无语法错误", "主外键索引完备"],
+      "estimateHours": 6.0,
+      "actualHours": 5.5,
+      "outputs": ["migrations/001_init.sql"],
+      "review": {
+        "logicVerified": true,
+        "logicVerifiedBy": "ci_migration_runner",
+        "humanSignOff": true,
+        "humanSignOffBy": "架构师老张",
+        "comments": ["数据库结构设计规范，允许合入"]
+      }
+    },
+    {
+      "nodeId": "node-api-user-auth",
+      "parentId": null,
+      "nodeType": "api",
+      "name": "统一用户认证与 JWT 接口",
+      "description": "支持手机号验证码、账号密码登录",
+      "tags": ["backend", "core_api", "test_coverage"],
+      "assignRole": "backend_dev",
+      "assignee": "李磊",
+      "status": "review_pass",
+      "deps": ["node-db-schema"],
+      "acceptanceCriteria": [
+        "POST /api/v1/auth/login 200 返回 JWT Token",
+        "密码错误返回 401 明确语义",
+        "连续 5 次错误锁定 15 分钟"
+      ],
+      "externalBinding": {
+        "system": "api_test_platform",
+        "targetType": "api_test",
+        "targetId": "TEST-AUTH-001",
+        "meta": { "path": "/api/v1/auth/login", "method": "POST" }
+      },
+      "estimateHours": 8.0,
+      "actualHours": 7.0,
+      "outputs": ["src/services/auth.py"],
+      "review": {
+        "logicVerified": true,
+        "logicVerifiedBy": "agent_test_runner",
+        "humanSignOff": true,
+        "humanSignOffBy": "PM 王总",
+        "comments": ["接口稳定，耗时达标"]
+      }
+    },
+    {
+      "nodeId": "node-event-tracking",
+      "parentId": null,
+      "nodeType": "feature",
+      "name": "客户端登录事件埋点定义",
+      "description": "SDK 自动采集登录成功/失败元数据与设备指纹",
+      "tags": ["analytics", "client"],
+      "assignRole": "data_analyst",
+      "assignee": "小周(分析师)",
+      "status": "review_pass",
+      "deps": ["node-api-user-auth"],
+      "acceptanceCriteria": ["埋点 Schema 符合神策/自研数据字典规范"],
+      "estimateHours": 3.0,
+      "actualHours": 2.5,
+      "outputs": ["docs/specs/event_login_v1.json"],
+      "review": {
+        "logicVerified": true,
+        "humanSignOff": true,
+        "comments": ["埋点口径已冻结"]
+      }
+    },
+    {
+      "nodeId": "node-api-order-create",
+      "parentId": null,
+      "nodeType": "api",
+      "name": "核心下单与库存预占接口",
+      "description": "高并发库存扣减与分布式事务保证",
+      "tags": ["backend", "core_api", "test_coverage"],
+      "assignRole": "backend_dev",
+      "assignee": "李磊",
+      "status": "logic_verified",
+      "deps": ["node-api-user-auth"],
+      "acceptanceCriteria": [
+        "POST /api/v1/orders 200 成功预占库存",
+        "库存不足时原子回滚并返回 409 Conflict"
+      ],
+      "externalBinding": {
+        "system": "api_test_platform",
+        "targetType": "api_test",
+        "targetId": "TEST-ORDER-002",
+        "meta": { "path": "/api/v1/orders", "method": "POST" }
+      },
+      "estimateHours": 12.0,
+      "actualHours": 10.0,
+      "outputs": ["src/services/order.py"],
+      "review": {
+        "logicVerified": true,
+        "logicVerifiedBy": "agent_stress_tester",
+        "humanSignOff": false,
+        "comments": [
+          "【自动化压测通过】接口并发 500 QPS 下响应时间平均 42ms，逻辑正确，等待人类 PM 终审体验"
+        ]
+      }
+    },
+    {
+      "nodeId": "node-stream-flink",
+      "parentId": null,
+      "nodeType": "data_pipeline",
+      "name": "实时交易流 Flink 消费与清洗",
+      "description": "从 Kafka 订阅下单与支付事件进行实时宽表拼接",
+      "tags": ["analytics", "data_pipeline"],
+      "assignRole": "data_engineer",
+      "assignee": "赵工",
+      "status": "deving",
+      "deps": ["node-event-tracking", "node-api-order-create"],
+      "acceptanceCriteria": ["延迟低于 200ms", "Exactly-Once 语义保障"],
+      "estimateHours": 10.0,
+      "actualHours": 4.0,
+      "outputs": ["jobs/stream_trade_clean.scala"],
+      "review": {
+        "logicVerified": false,
+        "humanSignOff": false,
+        "comments": []
+      }
+    },
+    {
+      "nodeId": "node-metric-dashboard",
+      "parentId": null,
+      "nodeType": "feature",
+      "name": "实时交易与转化率分析大盘",
+      "description": "实时展示漏斗转化率、客单价与支付成功率趋势",
+      "tags": ["analytics", "metric"],
+      "assignRole": "data_analyst",
+      "assignee": "小周(分析师)",
+      "status": "pending_dev",
+      "deps": ["node-stream-flink"],
+      "acceptanceCriteria": ["支持 5 秒级自动刷新", "与离线数仓 T+1 误差小于 0.01%"],
+      "estimateHours": 8.0,
+      "actualHours": 0.0,
+      "outputs": [],
+      "review": {
+        "logicVerified": false,
+        "humanSignOff": false
+      }
+    },
+    {
+      "nodeId": "node-payment-gateway",
+      "parentId": null,
+      "nodeType": "api",
+      "name": "第三方聚合收银台对接",
+      "description": "微信支付与支付宝 Native 支付调用",
+      "tags": ["backend", "core_api", "test_coverage"],
+      "assignRole": "backend_dev",
+      "assignee": "王工",
+      "status": "review_reject",
+      "deps": ["node-api-order-create"],
+      "acceptanceCriteria": ["验签机制完善", "支持重复回调幂等"],
+      "externalBinding": {
+        "system": "api_test_platform",
+        "targetType": "api_test",
+        "targetId": "TEST-PAY-003"
+      },
+      "estimateHours": 6.0,
+      "actualHours": 3.0,
+      "outputs": ["src/services/pay.py"],
+      "review": {
+        "logicVerified": false,
+        "logicVerifiedBy": "agent_test_runner",
+        "humanSignOff": false,
+        "comments": [
+          "【测试熔断报警】支付宝回调公钥验签失败，HTTP 502，电路短路熔断，下游支付确认无法开工！"
+        ]
+      }
+    },
+    {
+      "nodeId": "node-pay-confirm",
+      "parentId": null,
+      "nodeType": "feature",
+      "name": "支付成功履约与用户通知",
+      "description": "订单状态翻转与模版消息下发",
+      "tags": ["backend"],
+      "assignRole": "backend_dev",
+      "assignee": "王工",
+      "status": "pending_dev",
+      "deps": ["node-payment-gateway"],
+      "acceptanceCriteria": ["推送触达率 99.9%"],
+      "estimateHours": 4.0,
+      "actualHours": 0.0,
+      "outputs": [],
+      "review": {
+        "logicVerified": false,
+        "humanSignOff": false
+      }
+    }
+  ]
+}

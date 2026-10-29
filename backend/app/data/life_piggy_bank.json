@@ -1,0 +1,394 @@
+{
+  "projectId": "proj-life-piggy-bank",
+  "projectName": "Life-Piggy-Bank 人生储蓄罐与双代币自律激励全栈系统",
+  "description": "面向个人自律(A分)与伙伴互勉(B分)的双代币全栈自律养成与储蓄应用 (当前阶段: 提测验收与预发布)",
+  "version": "1.0.0-rc1",
+  "stage": "staging_review",
+  "perspectives": [
+    {
+      "viewId": "view-all",
+      "name": "全域架构拓扑 (All)",
+      "description": "项目全量 10 项任务节点与物理电路总网",
+      "icon": "Layers",
+      "includeTags": [],
+      "includeNodeTypes": [],
+      "bypassUnmatched": false
+    },
+    {
+      "viewId": "view-flutter",
+      "name": "Flutter 移动端视角 (Alice)",
+      "description": "关注手风琴树形卡片、心得持久化、窄屏 0px 溢出与状态联动",
+      "icon": "Smartphone",
+      "includeTags": ["frontend", "mobile", "flutter"],
+      "includeNodeTypes": ["feature", "component"],
+      "bypassUnmatched": true
+    },
+    {
+      "viewId": "view-ledger",
+      "name": "金融分账与架构视角 (Bob)",
+      "description": "关注 A/B 双代币隔离、SQLAlchemy 行级排他锁与周期滚动",
+      "icon": "Database",
+      "includeTags": ["backend", "ledger", "security"],
+      "includeNodeTypes": ["api", "feature"],
+      "bypassUnmatched": true
+    },
+    {
+      "viewId": "view-qa-gate",
+      "name": "QA 质量门禁视角 (Carol)",
+      "description": "关注 64 项 BDD 用户故事自动化回归、防双花渗透与契约断言",
+      "icon": "CheckSquare",
+      "includeTags": ["qa", "bdd", "contract"],
+      "includeNodeTypes": ["case", "api"],
+      "bypassUnmatched": true
+    },
+    {
+      "viewId": "view-product",
+      "name": "双代币博弈机制视角 (PM)",
+      "description": "关注自律 A 分与伙伴互勉 B 分的博弈流转与商城闭环",
+      "icon": "Coins",
+      "includeTags": ["product", "game_theory"],
+      "includeNodeTypes": ["feature"],
+      "bypassUnmatched": true
+    }
+  ],
+  "nodes": [
+    {
+      "nodeId": "T01",
+      "parentId": null,
+      "nodeType": "feature",
+      "name": "用户鉴权与账号记忆 (UUID体系)",
+      "description": "JWT 鉴权、离线单机沙箱、多账号登录历史持久化（本地记录最近 10 个常用账号）与快捷切换",
+      "tags": ["frontend", "backend", "security", "core_path"],
+      "assignRole": "fullstack",
+      "assignee": "Alice + Bob",
+      "status": "review_pass",
+      "deps": [],
+      "acceptanceCriteria": [
+        "系统严禁使用纯用户名做外键，所有积分、商品、任务指派必须绑定真实 UUID",
+        "多账号登录历史持久化 (SharedPreferences)，支持下拉切换与单项清理",
+        "单机离线沙箱数据与云端环境隔离"
+      ],
+      "estimateHours": 16.0,
+      "actualHours": 15.0,
+      "outputs": [
+        "backend/app/auth/jwt_handler.py",
+        "frontend/lib/services/account_history_service.dart"
+      ],
+      "review": {
+        "logicVerified": true,
+        "logicVerifiedBy": "backend/tests/test_auth_slice.py",
+        "humanSignOff": true,
+        "humanSignOffBy": "PM / 架构师",
+        "comments": ["UUID 基建已冻结，安全合规达标"]
+      }
+    },
+    {
+      "nodeId": "T02",
+      "parentId": null,
+      "nodeType": "feature",
+      "name": "伙伴邀请与动态角色解耦网络",
+      "description": "定向邀请与双向确认机制，动态判定我是发行方 (giver) 还是执行方 (recipient)",
+      "tags": ["frontend", "backend", "product", "game_theory"],
+      "assignRole": "fullstack",
+      "assignee": "Alice + Bob",
+      "status": "review_pass",
+      "deps": ["T01"],
+      "acceptanceCriteria": [
+        "解耦传统家庭刻板身份，支持双向角色自由切换",
+        "必须双方建立 Active 绑定关系，前端才允许创建 B 类任务并指派",
+        "同名用户消歧与防重邀请保护机制"
+      ],
+      "estimateHours": 14.0,
+      "actualHours": 13.5,
+      "outputs": [
+        "backend/app/services/partnership_service.py",
+        "frontend/lib/views/partnership_dialog.dart"
+      ],
+      "review": {
+        "logicVerified": true,
+        "logicVerifiedBy": "backend/tests/test_family_tasks_flow.py",
+        "humanSignOff": true,
+        "humanSignOffBy": "PM",
+        "comments": ["伙伴关系双向流转跑顺，角色解耦正常"]
+      }
+    },
+    {
+      "nodeId": "T03",
+      "parentId": null,
+      "nodeType": "api",
+      "name": "双代币分账账本引擎与行级排他锁",
+      "description": "个人 A 积分绝对私有；按发行人严格分立独立 B 积分账本，行级排他锁防双花与防穿透",
+      "tags": ["backend", "ledger", "qa", "contract"],
+      "assignRole": "backend_dev",
+      "assignee": "Bob",
+      "status": "review_pass",
+      "deps": ["T01"],
+      "acceptanceCriteria": [
+        "执行人同时拥有发行人 X 和 Y 的 B 分时，两本账严格隔离，余额互不混用",
+        "所有积分写操作在单一 DB 事务中完成，避免负数透支与并发重放",
+        "409 Conflict 必须返回机器错误码 (如 ledger.insufficient_balance)"
+      ],
+      "externalBinding": {
+        "system": "pytest_runner",
+        "targetType": "unit_slice",
+        "targetId": "backend/tests/test_ledger.py",
+        "meta": { "totalCases": 48, "coverage": "99.2%" }
+      },
+      "estimateHours": 24.0,
+      "actualHours": 22.0,
+      "outputs": [
+        "backend/app/models/ledger.py",
+        "backend/app/services/ledger_transaction_manager.py"
+      ],
+      "review": {
+        "logicVerified": true,
+        "logicVerifiedBy": "QA Carol (防穿透与并发切片用例)",
+        "humanSignOff": true,
+        "humanSignOffBy": "架构师",
+        "comments": ["【金融核心】行级排他锁在 200 并发压测下零穿透、零负数！"]
+      }
+    },
+    {
+      "nodeId": "T04",
+      "parentId": null,
+      "nodeType": "feature",
+      "name": "他律任务指派、凭证提交与审批闭环",
+      "description": "发行方发布 B 任务；执行方打卡并提交凭证；发行方待审批列表处理（批准加分或驳回并留痕）",
+      "tags": ["frontend", "backend", "product", "qa", "game_theory"],
+      "assignRole": "fullstack",
+      "assignee": "Alice + Bob",
+      "status": "logic_verified",
+      "deps": ["T02", "T03"],
+      "acceptanceCriteria": [
+        "POST /api/v1/tasks/approvals/{id}/approve 批准后返回最新 B 分快照",
+        "驳回必须强制填写理由，执行方可查看原因并版本递增重提",
+        "执行方不可审批自己领取的 B 任务 (防自导自演)"
+      ],
+      "externalBinding": {
+        "system": "pytest_runner",
+        "targetType": "api_test",
+        "targetId": "backend/tests/test_tasks_slice.py",
+        "meta": {
+          "endpoint": "POST /api/v1/tasks/approvals/{instance_id}/approve",
+          "method": "POST"
+        }
+      },
+      "estimateHours": 20.0,
+      "actualHours": 18.0,
+      "outputs": [
+        "backend/app/routers/approvals.py",
+        "frontend/lib/views/approval_center_page.dart"
+      ],
+      "review": {
+        "logicVerified": true,
+        "logicVerifiedBy": "test_tasks_slice.py (18/18 passed)",
+        "humanSignOff": false,
+        "comments": [
+          "【自动化切片通过】审批发奖与驳回流转 100% 验证通过，等待 PM 进行真机交互体验终审！"
+        ]
+      }
+    },
+    {
+      "nodeId": "T05",
+      "parentId": null,
+      "nodeType": "component",
+      "name": "自律手风琴树形卡片与 100% 通关归档",
+      "description": "主线内嵌支线树形卡片；实时计算通关百分比进度条；支线三层分流；100% 通关目标自动沉淀归档 (TASK-28)",
+      "tags": ["frontend", "mobile", "flutter", "product"],
+      "assignRole": "flutter_dev",
+      "assignee": "Alice",
+      "status": "review_pass",
+      "deps": ["T01"],
+      "acceptanceCriteria": [
+        "在 Android 720p（360dp 窄屏）环境下，手风琴卡片 RenderFlex 溢出绝对为 0px (消除19px溢出)",
+        "主支线树形嵌套支持折叠展开，完成时平滑滚动到底部归档区",
+        "区分自律践行 A 任务与他人指派 B 任务的视觉铭牌"
+      ],
+      "externalBinding": {
+        "system": "flutter_test",
+        "targetType": "widget_test",
+        "targetId": "test/task_tree_template_test.dart"
+      },
+      "estimateHours": 18.0,
+      "actualHours": 17.5,
+      "outputs": [
+        "frontend/lib/widgets/tree_template_card.dart",
+        "frontend/lib/controllers/task_tree_controller.dart"
+      ],
+      "review": {
+        "logicVerified": true,
+        "logicVerifiedBy": "task_tree_template_test.dart",
+        "humanSignOff": true,
+        "humanSignOffBy": "PM / UI 设计师",
+        "comments": ["窄屏 0px 溢出修复，手风琴折叠动画丝滑"]
+      }
+    },
+    {
+      "nodeId": "T06",
+      "parentId": null,
+      "nodeType": "feature",
+      "name": "自律打卡心得备注全链路贯通 (TASK-31)",
+      "description": "打卡弹窗选填心得备注 (0~5000字)，打卡成功后心得写入动态流，且严格保障私密隔离",
+      "tags": ["frontend", "backend", "flutter", "security"],
+      "assignRole": "fullstack",
+      "assignee": "Alice + Bob",
+      "status": "logic_verified",
+      "deps": ["T05"],
+      "acceptanceCriteria": [
+        "POST /api/v1/tasks/assignments/{id}/submit 接收 proof_text 字段并持久化",
+        "自律打卡心得 (is_self_task=true) 在动态流拉取中，非本人访问必须由后端屏蔽，严防隐私泄露",
+        "心得超长文本折叠展开与换行排版正常"
+      ],
+      "externalBinding": {
+        "system": "pytest_and_flutter_test",
+        "targetType": "vertical_slice",
+        "targetId": "test/task_vertical_slice_test.dart"
+      },
+      "estimateHours": 12.0,
+      "actualHours": 10.0,
+      "outputs": [
+        "backend/app/routers/task_submissions.py",
+        "frontend/lib/widgets/task_proof_dialog.dart"
+      ],
+      "review": {
+        "logicVerified": true,
+        "logicVerifiedBy": "task_vertical_slice_test.dart",
+        "humanSignOff": false,
+        "comments": [
+          "【切片验证完成】proof_text 成功落库且私密过滤断言通过，等待 PM 确认多端文案展现"
+        ]
+      }
+    },
+    {
+      "nodeId": "T07",
+      "parentId": null,
+      "nodeType": "feature",
+      "name": "个人心愿与伙伴商城兑换履约闭环",
+      "description": "A 分心愿即时扣除；B 分商品预扣、发行人履约中心发放或驳回原路退款",
+      "tags": ["frontend", "backend", "ledger", "product", "game_theory"],
+      "assignRole": "fullstack",
+      "assignee": "Alice + Bob",
+      "status": "deving",
+      "deps": ["T03", "T04"],
+      "acceptanceCriteria": [
+        "POST /api/v1/shop/items/{id}/redeem 支持幂等性校验 (idempotency_key)",
+        "余额不足时原子回滚并返回 409 shop.insufficient_balance",
+        "发行人驳回订单时，原路返还对应发行人账本的 B 积分并恢复库存"
+      ],
+      "externalBinding": {
+        "system": "pytest_runner",
+        "targetType": "api_test",
+        "targetId": "backend/tests/test_shop_slice.py",
+        "meta": { "endpoint": "POST /api/v1/shop/items/{item_id}/redeem" }
+      },
+      "estimateHours": 22.0,
+      "actualHours": 14.0,
+      "outputs": [
+        "backend/app/services/shop_order_service.py",
+        "frontend/lib/views/partner_shop_page.dart"
+      ],
+      "review": {
+        "logicVerified": false,
+        "humanSignOff": false,
+        "comments": [
+          "【研发中】预扣与订单生成已完成，正在联调驳回原路退款与库存补偿事务"
+        ]
+      }
+    },
+    {
+      "nodeId": "T08",
+      "parentId": null,
+      "nodeType": "feature",
+      "name": "克制储蓄挑战罐与破功惩罚算法",
+      "description": "单一常驻冲动消费克制储蓄挑战；记录省钱存入行为；破功惩罚模式（实际金额/折半/归零）；连续天数",
+      "tags": ["frontend", "backend", "product"],
+      "assignRole": "fullstack",
+      "assignee": "Alice + Bob",
+      "status": "review_pass",
+      "deps": ["T01"],
+      "acceptanceCriteria": [
+        "破功扣罚支持三种模式计算：实际金额、折半扣除、进度归零",
+        "Streak 连续克制天数基于服务端时区基准防篡改",
+        "成果用途最终达成后生成归档海报数据"
+      ],
+      "estimateHours": 14.0,
+      "actualHours": 13.0,
+      "outputs": [
+        "backend/app/routers/piggy_bank.py",
+        "frontend/lib/views/savings_challenge_card.dart"
+      ],
+      "review": {
+        "logicVerified": true,
+        "humanSignOff": true,
+        "comments": ["心理学储蓄模型跑通，破功惩罚公式自测合格"]
+      }
+    },
+    {
+      "nodeId": "T09",
+      "parentId": null,
+      "nodeType": "component",
+      "name": "动态流审计与跨Tab全域免刷新状态联动",
+      "description": "跨 Tab 状态联动（任务审批后商城可用余额自动翻转）；时间线动态流记录自律足迹并严格隔离私密心得",
+      "tags": ["frontend", "mobile", "flutter"],
+      "assignRole": "flutter_dev",
+      "assignee": "Alice",
+      "status": "deving",
+      "deps": ["T04", "T06", "T07", "T08"],
+      "acceptanceCriteria": [
+        "审批中心通过打卡后，切换到商城 Tab 余额已自动刷新，无需用户手动下拉",
+        "自律日历成长足迹与动态流渲染性能在 1000+ 条目下保持 60fps",
+        "私密心得与公开打卡凭证在 UI 渲染层做绝对视觉隔离"
+      ],
+      "estimateHours": 16.0,
+      "actualHours": 8.0,
+      "outputs": [
+        "frontend/lib/controllers/app_state_coordinator.dart",
+        "frontend/lib/views/timeline_feed_view.dart"
+      ],
+      "review": {
+        "logicVerified": false,
+        "humanSignOff": false,
+        "comments": [
+          "【研发中】全局 Coordinator 已打通任务与账本广播，正在收尾动态流私密过滤渲染"
+        ]
+      }
+    },
+    {
+      "nodeId": "T10",
+      "parentId": null,
+      "nodeType": "case",
+      "name": "64项 BDD 用户故事自动化验收与并发防双花渗透",
+      "description": "BDD 用户故事地图（64条用例）、四级质量门禁（L1~L4）、双端自动化测试回归与极端并发穿透",
+      "tags": ["qa", "bdd", "contract", "security"],
+      "assignRole": "qa_architect",
+      "assignee": "Carol (QA)",
+      "status": "pending_dev",
+      "deps": ["T01", "T02", "T03", "T04", "T05", "T06", "T07", "T08", "T09"],
+      "acceptanceCriteria": [
+        "USER_STORY_MAP.md 中 64 项细分验收故事 100% 自动化覆盖并全部通过",
+        "并发 200 线程连续请求兑换与审批，B 分账本零混用、零负数、零双花",
+        "architecture_boundaries_test.dart 架构边界 0 越权，Flutter 窄屏 0px 溢出"
+      ],
+      "externalBinding": {
+        "system": "test_runner_orchestrator",
+        "targetType": "gate_suite",
+        "targetId": "tool/test_runner.py --mode=gate",
+        "meta": { "totalBddCases": 64, "levels": ["L1", "L2", "L3", "L4"] }
+      },
+      "estimateHours": 24.0,
+      "actualHours": 0.0,
+      "outputs": [
+        "tool/test_runner.py",
+        "docs/USER_STORY_MAP.md",
+        "reports/qa_gate_final.json"
+      ],
+      "review": {
+        "logicVerified": false,
+        "humanSignOff": false,
+        "comments": [
+          "【质量门禁已就绪】正在等上游 T07 商城闭环与 T09 状态联动开发完成，前置一导通即全量开跑门禁！"
+        ]
+      }
+    }
+  ]
+}
