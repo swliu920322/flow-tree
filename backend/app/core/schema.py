@@ -81,6 +81,7 @@ class ProjectModel(BaseModel):
     projectName: str
     description: Optional[str] = ""
     version: str = "1.0.0"
+    stage: Optional[str] = "staging_review"
     perspectives: List[PerspectiveModel] = Field(default_factory=list)
     nodes: List[NodeModel] = Field(default_factory=list)
     createdAt: str = Field(default_factory=lambda: datetime.utcnow().isoformat())

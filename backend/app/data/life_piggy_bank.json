@@ -1,365 +1,227 @@
 {
   "projectId": "proj-life-piggy-bank",
   "projectName": "Life-Piggy-Bank 人生储蓄罐与双代币自律激励全栈系统",
-  "description": "基于 3 条端到端独立业务主线与 1 个公共基座中心的清晰电路网架构",
-  "version": "1.1.0-streamlined",
+  "description": "基于 3 条真实端到端用户故事旅程 (E2E User Storyboards) 的全景端测试状态板",
+  "version": "2.0.0-user-storyboard",
   "stage": "staging_review",
   "perspectives": [
     {
       "viewId": "view-all",
-      "name": "全域业务航道总览 (3条主线 + 1基座)",
-      "description": "自律A线、伙伴B线、克制储蓄线与基座中心独立清晰流向",
-      "icon": "Layers",
+      "name": "🎬 全部用户故事全景 (3大端到端旅程)",
+      "description": "个人自律逆袭、情侣互勉甜宠、月光族克制存钱 3 大故事全景走查",
+      "icon": "Film",
       "includeTags": [],
       "includeNodeTypes": [],
       "bypassUnmatched": false
     },
     {
-      "viewId": "view-lane-a",
-      "name": "业务主线一：自律践行与心愿闭环 (A分)",
-      "description": "纯个人自律打卡、心得选填、A分到账与心愿即时核销",
-      "icon": "UserCheck",
-      "includeTags": ["lane_a"],
+      "viewId": "view-story-1",
+      "name": "🎭 故事一：打工人小李的自律逆袭记 (个人A分)",
+      "description": "立每日晨跑Flag -> 打卡写心得 -> 10个A币入袋 -> 攒够买大餐犒赏自己",
+      "icon": "User",
+      "includeTags": ["story_1"],
       "includeNodeTypes": ["feature", "component"],
       "bypassUnmatched": false
     },
     {
-      "viewId": "view-lane-b",
-      "name": "业务主线二：伙伴他律与商城履约闭环 (B分)",
-      "description": "伙伴绑定、B任务指派、凭证提交、审批发奖与商城履约退款",
-      "icon": "Award",
-      "includeTags": ["lane_b"],
+      "viewId": "view-story-2",
+      "name": "🎭 故事二：小情侣的甜宠互勉大作战 (伙伴B分)",
+      "description": "加女友为监督官 -> 女友派发早睡任务 -> 拍照交作业 -> 女友审批发奖 -> 请喝奶茶核销",
+      "icon": "Heart",
+      "includeTags": ["story_2"],
       "includeNodeTypes": ["feature", "api"],
       "bypassUnmatched": false
     },
     {
-      "viewId": "view-lane-c",
-      "name": "业务主线三：冲动克制储蓄挑战闭环",
-      "description": "设立克制挑战、省钱存入、破功惩罚算法与成果用途登记",
+      "viewId": "view-story-3",
+      "name": "🎭 故事三：月光族抵抗奶茶诱惑存钱 (储蓄挑战)",
+      "description": "设定存钱梦想 -> 忍住不喝随手记账 -> 破功扣款警示 -> 存满买手机登记发票",
       "icon": "PiggyBank",
-      "includeTags": ["lane_c"],
+      "includeTags": ["story_3"],
       "includeNodeTypes": ["feature", "api"],
-      "bypassUnmatched": false
-    },
-    {
-      "viewId": "view-infra",
-      "name": "公共基建与测试门禁中心",
-      "description": "JWT鉴权、多账号记忆、行级排他锁与64项BDD质量门禁",
-      "icon": "ShieldCheck",
-      "includeTags": ["lane_infra"],
-      "includeNodeTypes": ["feature", "api", "case"],
       "bypassUnmatched": false
     }
   ],
   "nodes": [
     {
-      "nodeId": "INFRA-AUTH",
-      "parentId": "LANE-INFRA",
+      "nodeId": "S1-01",
+      "parentId": "STORY-1",
       "nodeType": "feature",
-      "name": "用户注册/登录与 JWT 令牌发放",
-      "description": "系统安全基础设施：用户唯一UUID生成，bcrypt密码加盐与HS256 JWT身份鉴权",
-      "tags": ["lane_infra", "security", "core_path"],
-      "assignRole": "backend_dev",
-      "assignee": "Bob",
+      "name": "01. 打开 App 一秒免密登录",
+      "description": "【用户视点】小李打开手机 App，输入用户名，一键免密进入个人专属自律空间，记住历史登录账号",
+      "tags": ["story_1", "step_1"],
+      "assignRole": "全栈体验",
+      "assignee": "Alice + Bob",
       "status": "review_pass",
       "deps": [],
       "acceptanceCriteria": [
-        "系统严禁使用纯用户名做外键，所有积分、商品、任务指派必须绑定真实 UUID",
-        "返回 HTTP 200 及合法 Token，重复注册返回 409 auth.username_exists"
+        "【端体验走查】冷启动 1.2 秒内完成加载，无需反复输入账号密码",
+        "【端安全性断言】安全隔离小李的专属数据，不产生任何隐私串线"
+      ],
+      "estimateHours": 6.0,
+      "actualHours": 5.5,
+      "outputs": ["frontend/lib/views/login_page.dart"],
+      "review": {
+        "logicVerified": true,
+        "humanSignOff": true,
+        "comments": ["【真机走查通过】720p 窄屏加载平滑，多账号下拉切换流畅！"]
+      }
+    },
+    {
+      "nodeId": "S1-02",
+      "parentId": "STORY-1",
+      "nodeType": "feature",
+      "name": "02. 立下每日晨跑的自律 Flag",
+      "description": "【用户视点】小李点击新建任务，立下“每天晨跑5公里”手风琴卡片，设定完成奖励 10 个 A 积分",
+      "tags": ["story_1", "step_2"],
+      "assignRole": "前端体验",
+      "assignee": "Alice (Flutter)",
+      "status": "review_pass",
+      "deps": ["S1-01"],
+      "acceptanceCriteria": [
+        "【端视觉走查】手风琴卡片展开折叠顺滑，在 360dp 窄屏手机上绝对 0px 溢出报错 (消除TASK-28缺陷)",
+        "【端状态断言】新目标实时沉淀在主屏幕“未完成”待办流首位"
       ],
       "estimateHours": 8.0,
       "actualHours": 7.5,
-      "outputs": ["backend/app/auth/jwt_handler.py"],
-      "review": {
-        "logicVerified": true,
-        "logicVerifiedBy": "backend/tests/test_auth_slice.py",
-        "humanSignOff": true,
-        "humanSignOffBy": "架构师",
-        "comments": ["【基础设施已就绪】UUID 基建与鉴权测试全通，向各业务主线提供就绪能力"]
-      }
-    },
-    {
-      "nodeId": "INFRA-HISTORY",
-      "parentId": "LANE-INFRA",
-      "nodeType": "component",
-      "name": "多账号登录历史持久化与快捷切换",
-      "description": "自动记录最近 10 个常用账号，登录页输入框下拉弹窗一键选填与单项清理",
-      "tags": ["lane_infra", "flutter"],
-      "assignRole": "flutter_dev",
-      "assignee": "Alice",
-      "status": "review_pass",
-      "deps": ["INFRA-AUTH"],
-      "acceptanceCriteria": [
-        "SharedPreferences 持久化存储最近 10 个常用账号并置顶",
-        "单元测试 account_history_test.dart 6 项测试全部通过"
-      ],
-      "externalBinding": {
-        "system": "flutter_test",
-        "targetType": "unit_test",
-        "targetId": "test/account_history_test.dart"
-      },
-      "estimateHours": 8.0,
-      "actualHours": 7.0,
-      "outputs": ["frontend/lib/services/account_history_service.dart"],
-      "review": { "logicVerified": true, "humanSignOff": true }
-    },
-    {
-      "nodeId": "INFRA-LOCK",
-      "parentId": "LANE-INFRA",
-      "nodeType": "api",
-      "name": "双代币账本行级排他锁与幂等引擎",
-      "description": "金融核心底座：SELECT ... FOR UPDATE 行级锁杜绝代币超扣，保障并发零双花",
-      "tags": ["lane_infra", "ledger", "security"],
-      "assignRole": "backend_dev",
-      "assignee": "Bob",
-      "status": "review_pass",
-      "deps": ["INFRA-AUTH"],
-      "acceptanceCriteria": [
-        "多协程并发扣款压测下，余额永不出现负数",
-        "命中同一 idempotency_key 幂等返回原单据结果，不发生二次扣除"
-      ],
-      "externalBinding": {
-        "system": "pytest_runner",
-        "targetType": "concurrency_test",
-        "targetId": "backend/tests/test_ledger.py"
-      },
-      "estimateHours": 16.0,
-      "actualHours": 15.0,
-      "outputs": ["backend/app/services/ledger_transaction_manager.py"],
-      "review": {
-        "logicVerified": true,
-        "logicVerifiedBy": "QA Carol (200 并发压测)",
-        "humanSignOff": true,
-        "comments": ["【金融安全验证】200 并发下零双花、零透支！"]
-      }
-    },
-    {
-      "nodeId": "INFRA-GATE",
-      "parentId": "LANE-INFRA",
-      "nodeType": "case",
-      "name": "64项 BDD 自动化回归与质量门禁套件",
-      "description": "全域质量守卫：192 项 Pytest 与 320 项 Flutter Widget / 逻辑切片测试全量校验",
-      "tags": ["lane_infra", "qa", "bdd", "gate"],
-      "assignRole": "qa_architect",
-      "assignee": "Carol (QA)",
-      "status": "pending_dev",
-      "deps": ["INFRA-AUTH", "INFRA-LOCK"],
-      "acceptanceCriteria": [
-        "64 项细分验收故事 100% 自动化覆盖并全部通过",
-        "architecture_boundaries_test.dart 架构边界 0 越权，Flutter 窄屏 0px 溢出"
-      ],
-      "externalBinding": {
-        "system": "test_runner_orchestrator",
-        "targetType": "gate_suite",
-        "targetId": "tool/test_runner.py --mode=gate"
-      },
-      "estimateHours": 24.0,
-      "actualHours": 0.0,
-      "outputs": ["tool/test_runner.py", "docs/USER_STORY_MAP.md"],
-      "review": {
-        "logicVerified": false,
-        "humanSignOff": false,
-        "comments": ["【质量门禁已就绪】正在等业务主线全量导通，一键触发 L4 终审门禁！"]
-      }
-    },
-
-    {
-      "nodeId": "A-SLOT-AUTH",
-      "parentId": "LANE-A",
-      "nodeType": "feature",
-      "name": "基座就绪端口：用户鉴权 (UUID)",
-      "description": "【通用基座引用】本主线依赖的基础身份标识已通过",
-      "tags": ["lane_a", "proxy"],
-      "assignRole": "system",
-      "assignee": "系统已就绪",
-      "status": "review_pass",
-      "deps": [],
-      "acceptanceCriteria": ["主线所需用户 UUID 会话已就绪"],
-      "estimateHours": 0.0,
-      "actualHours": 0.0,
-      "outputs": [],
-      "review": {
-        "logicVerified": true,
-        "humanSignOff": true,
-        "comments": ["引自公共基座中心 INFRA-AUTH，状态同步导通"]
-      }
-    },
-    {
-      "nodeId": "A-01",
-      "parentId": "LANE-A",
-      "nodeType": "feature",
-      "name": "创建自律任务模板与手风琴树卡 (TASK-28)",
-      "description": "主线内嵌支线树形卡片，360dp 物理窄屏下 0px 溢出适配，通关奖励设定",
-      "tags": ["lane_a", "flutter", "self_discipline"],
-      "assignRole": "flutter_dev",
-      "assignee": "Alice",
-      "status": "review_pass",
-      "deps": ["A-SLOT-AUTH"],
-      "acceptanceCriteria": [
-        "在 Android 720p（360dp 物理窄屏）环境下，手风琴卡片 RenderFlex 溢出绝对为 0px",
-        "主支线嵌套层级清晰，未完成/待审/已完成三层分流"
-      ],
-      "externalBinding": {
-        "system": "flutter_test",
-        "targetType": "widget_test",
-        "targetId": "test/task_tree_template_test.dart"
-      },
-      "estimateHours": 14.0,
-      "actualHours": 13.5,
       "outputs": ["frontend/lib/widgets/tree_template_card.dart"],
-      "review": { "logicVerified": true, "humanSignOff": true }
+      "review": {
+        "logicVerified": true,
+        "humanSignOff": true,
+        "comments": ["【真机手感打分 10/10】卡片折叠手感丝滑，窄屏 0 溢出！"]
+      }
     },
     {
-      "nodeId": "A-02",
-      "parentId": "LANE-A",
+      "nodeId": "S1-03",
+      "parentId": "STORY-1",
       "nodeType": "feature",
-      "name": "自律打卡选填心得 (0~5000字) 全链路持久化",
-      "description": "打卡弹窗选填感悟收获，自律任务无需他人审批，心得写入动态流且严格私密隔离 (TASK-31)",
-      "tags": ["lane_a", "self_discipline", "privacy"],
-      "assignRole": "fullstack",
+      "name": "03. 晨跑完随手打卡选填心得",
+      "description": "【用户视点】小李跑完步点击打卡，弹窗写下一句“今天配速提升，精神饱满！”并提交 (TASK-31)",
+      "tags": ["story_1", "step_3"],
+      "assignRole": "全栈体验",
       "assignee": "Alice + Bob",
       "status": "logic_verified",
-      "deps": ["A-01"],
+      "deps": ["S1-02"],
       "acceptanceCriteria": [
-        "POST /api/v1/tasks/assignments/{id}/submit 接收 proof_text 选填字段",
-        "自律打卡心得 (is_self_task=true) 仅本人可见，他人拉取动态流严格过滤防泄露",
-        "文本上限 5000 字符，排版自适应折叠"
+        "【端交互走查】打卡弹窗支持直接秒打卡，也支持输入 0~5000 字感悟，字数自适应排版折叠",
+        "【端隐私断言】小李的心得纯属私密自律日记，即使加了好友，好友也绝对看不到这段私密文字"
       ],
       "externalBinding": {
-        "system": "pytest_and_flutter_test",
-        "targetType": "vertical_slice",
+        "system": "flutter_driver_e2e",
+        "targetType": "e2e_journey",
         "targetId": "test/task_vertical_slice_test.dart"
       },
-      "estimateHours": 12.0,
-      "actualHours": 10.5,
-      "outputs": ["backend/app/routers/task_submissions.py"],
+      "estimateHours": 10.0,
+      "actualHours": 9.0,
+      "outputs": ["frontend/lib/widgets/task_proof_dialog.dart"],
       "review": {
         "logicVerified": true,
-        "logicVerifiedBy": "task_vertical_slice_test.dart",
+        "logicVerifiedBy": "端到端自动化录制回放通过",
         "humanSignOff": false,
-        "comments": ["【切片已跑通】proof_text 成功落库且私密过滤断言通过，等待 PM 终审签字！"]
+        "comments": [
+          "【端逻辑已跑通】心得文字成功上屏，私密过滤 100% 达成，等待 PM 在真机上确认打卡弹窗文字手感！"
+        ]
       }
     },
     {
-      "nodeId": "A-03",
-      "parentId": "LANE-A",
-      "nodeType": "api",
-      "name": "个人私有 A 积分账本即时结算",
-      "description": "自律打卡完成，高精度 Decimal 账本即时入账，绝对私有，他人无权扣减",
-      "tags": ["lane_a", "ledger", "self_discipline"],
-      "assignRole": "backend_dev",
-      "assignee": "Bob",
+      "nodeId": "S1-04",
+      "parentId": "STORY-1",
+      "nodeType": "feature",
+      "name": "04. 叮咚！10个A代币秒速入袋",
+      "description": "【用户视点】打卡瞬间听到金币到账音效，顶部个人 A 分余额数字翻转 +10，无需他人审批",
+      "tags": ["story_1", "step_4"],
+      "assignRole": "后端保障",
+      "assignee": "Bob (FastAPI)",
       "status": "review_pass",
-      "deps": ["A-01"],
+      "deps": ["S1-03"],
       "acceptanceCriteria": [
-        "流水表 balance_before + delta == balance_after 严格自洽",
-        "A 积分仅限个人自律产生，他人接口无权划扣"
+        "【端反馈走查】点击提交到界面数字翻转延迟小于 100ms，带金币到账微动效",
+        "【端账本断言】A 分账本绝对私有，他人接口绝无权扣减或篡改"
       ],
-      "estimateHours": 10.0,
-      "actualHours": 9.5,
+      "estimateHours": 6.0,
+      "actualHours": 5.5,
       "outputs": ["backend/app/models/ledger.py"],
       "review": { "logicVerified": true, "humanSignOff": true }
     },
     {
-      "nodeId": "A-04",
-      "parentId": "LANE-A",
+      "nodeId": "S1-05",
+      "parentId": "STORY-1",
       "nodeType": "feature",
-      "name": "个人心愿商品创建与即时扣分核销",
-      "description": "上架心仪奖励，A 积分攒够后自主兑换，即时扣除 A 分生成已完成单据，犒赏自律",
-      "tags": ["lane_a", "fulfillment"],
-      "assignRole": "fullstack",
+      "name": "05. 攒够了自己买顿大餐犒赏自己",
+      "description": "【用户视点】小李在心愿单里看到“周末吃顿大餐(需要100 A分)”，点击兑换，即时核销，自律达成！",
+      "tags": ["story_1", "step_5"],
+      "assignRole": "全栈体验",
       "assignee": "Alice + Bob",
       "status": "review_pass",
-      "deps": ["A-02", "A-03"],
+      "deps": ["S1-04"],
       "acceptanceCriteria": [
-        "心愿仅本人可见，点击兑换原子扣除 A 积分并达成目标",
-        "余额不足时兑换按钮置灰并明确提示"
+        "【端体验走查】A 分攒够后按钮亮起，点击瞬间扣除 100 A 分并生成心愿达成荣誉勋章",
+        "【端闭环断言】完全自主犒赏，不需要任何第三方审批，自律旅程完美闭环"
       ],
-      "estimateHours": 10.0,
-      "actualHours": 9.0,
+      "estimateHours": 8.0,
+      "actualHours": 7.5,
       "outputs": ["frontend/lib/views/wish_mall_page.dart"],
       "review": { "logicVerified": true, "humanSignOff": true }
     },
 
     {
-      "nodeId": "B-SLOT-AUTH",
-      "parentId": "LANE-B",
+      "nodeId": "S2-01",
+      "parentId": "STORY-2",
       "nodeType": "feature",
-      "name": "基座就绪端口：用户鉴权 (UUID)",
-      "description": "【通用基座引用】本主线依赖的基础身份标识已通过",
-      "tags": ["lane_b", "proxy"],
-      "assignRole": "system",
-      "assignee": "系统已就绪",
-      "status": "review_pass",
-      "deps": [],
-      "acceptanceCriteria": ["主线所需用户 UUID 会话已就绪"],
-      "estimateHours": 0.0,
-      "actualHours": 0.0,
-      "outputs": [],
-      "review": {
-        "logicVerified": true,
-        "humanSignOff": true,
-        "comments": ["引自公共基座中心 INFRA-AUTH，状态同步导通"]
-      }
-    },
-    {
-      "nodeId": "B-01",
-      "parentId": "LANE-B",
-      "nodeType": "feature",
-      "name": "伙伴定向邀请与动态解耦契约绑定",
-      "description": "输入用户名发起邀请，受邀人接受后激活 Active 契约，解耦角色动态确立 Giver 与 Recipient",
-      "tags": ["lane_b", "approval"],
-      "assignRole": "fullstack",
+      "name": "01. 扫码邀请女友成为我的监督官",
+      "description": "【用户视点】小李输入女友用户名发起绑定，女友手机收到弹窗提醒，点击“接受契约”确立监督关系",
+      "tags": ["story_2", "step_1"],
+      "assignRole": "全栈体验",
       "assignee": "Alice + Bob",
       "status": "review_pass",
-      "deps": ["B-SLOT-AUTH"],
+      "deps": [],
       "acceptanceCriteria": [
-        "双方确立 Active 契约后，自动开立对应的 B 代币分户账本",
-        "只有受邀人本人有权接受/驳回，发起人不可自审自批"
+        "【端体验走查】双方建立双向契约，动态识别“女友是监督发行方，小李是执行方”",
+        "【端账本断言】系统自动为小李开立专属由女友背书的“女友代币 (B分)”独立账本"
       ],
-      "estimateHours": 10.0,
-      "actualHours": 9.5,
-      "outputs": ["backend/app/services/partnership_service.py"],
+      "estimateHours": 8.0,
+      "actualHours": 7.5,
+      "outputs": ["frontend/lib/views/partnership_dialog.dart"],
       "review": { "logicVerified": true, "humanSignOff": true }
     },
     {
-      "nodeId": "B-02",
-      "parentId": "LANE-B",
+      "nodeId": "S2-02",
+      "parentId": "STORY-2",
       "nodeType": "feature",
-      "name": "发行人创建 B 任务指派给执行人",
-      "description": "设定基础奖励（如 20 B）与逾期违约扣罚，被指派人待办流实时呈现伙伴标牌",
-      "tags": ["lane_b", "approval"],
-      "assignRole": "fullstack",
+      "name": "02. 女友派发早睡任务悬赏20奶茶币",
+      "description": "【用户视点】女友在手机上发布一条任务：“晚上11点前关灯睡觉”，悬赏 20 个 B 代币；小李手机实时弹出待办",
+      "tags": ["story_2", "step_2"],
+      "assignRole": "全栈体验",
       "assignee": "Alice + Bob",
       "status": "review_pass",
-      "deps": ["B-01"],
+      "deps": ["S2-01"],
       "acceptanceCriteria": [
-        "只能指派给已绑定的活跃伙伴，陌生人禁止指派",
-        "被指派人待办流中实时出现该任务，明确展示“由伙伴发布”"
+        "【端视觉走查】小李待办列表出现粉色标牌：“来自女友的监督任务 (+20 奶茶币)”",
+        "【端权限断言】只能指派给已绑定的亲友，陌生人禁止跨屏指派"
       ],
-      "estimateHours": 10.0,
-      "actualHours": 9.0,
+      "estimateHours": 8.0,
+      "actualHours": 7.5,
       "outputs": ["backend/app/routers/tasks.py"],
       "review": { "logicVerified": true, "humanSignOff": true }
     },
     {
-      "nodeId": "B-03",
-      "parentId": "LANE-B",
+      "nodeId": "S2-03",
+      "parentId": "STORY-2",
       "nodeType": "feature",
-      "name": "执行人提交打卡凭证至待审批队列",
-      "description": "执行人完成任务输入完成说明或凭证，状态翻转为 reviewing 等待对方审核",
-      "tags": ["lane_b", "approval", "flutter"],
-      "assignRole": "fullstack",
+      "name": "03. 晚上11点拍照上传交作业",
+      "description": "【用户视点】10点55分小李关灯上床，拍了一张黑屏闹钟照片上传提交凭证，任务变为“等待女友审核”",
+      "tags": ["story_2", "step_3"],
+      "assignRole": "全栈体验",
       "assignee": "Alice + Bob",
       "status": "logic_verified",
-      "deps": ["B-02"],
+      "deps": ["S2-02"],
       "acceptanceCriteria": [
-        "提交后任务实例状态变更为 reviewing，执行人不可重复打卡",
-        "发行人待审批中心红点提示计数准确 +1，执行人无权自审"
+        "【端交互走查】小李点击提交后状态翻转为“待审批”，防重复提交，小李自己无法自审自批",
+        "【端通知断言】女友端底栏“待审批中心”实时出现红色角标提示 +1"
       ],
       "externalBinding": {
-        "system": "pytest_runner",
-        "targetType": "api_test",
+        "system": "flutter_driver_e2e",
+        "targetType": "e2e_journey",
         "targetId": "backend/tests/test_tasks_slice.py"
       },
       "estimateHours": 8.0,
@@ -367,213 +229,188 @@
       "outputs": ["frontend/lib/widgets/task_proof_dialog.dart"],
       "review": {
         "logicVerified": true,
-        "logicVerifiedBy": "test_tasks_slice.py",
+        "logicVerifiedBy": "端切片测试通过",
         "humanSignOff": false,
-        "comments": ["【切片验证通过】凭证提交流转正常，等待 PM 终审体验！"]
+        "comments": ["【自动化验证通过】拍照凭证上屏流转正常，等待 PM 终审两端协同通知手感！"]
       }
     },
     {
-      "nodeId": "B-04",
-      "parentId": "LANE-B",
-      "nodeType": "api",
-      "name": "发行人待审批中心裁决发奖 (支持驳回重提)",
-      "description": "查验打卡凭证，点击批准在单事务中发奖到账对应发行人B账本；驳回必填理由支持版本递增重提",
-      "tags": ["lane_b", "approval", "ledger"],
-      "assignRole": "backend_dev",
-      "assignee": "Bob",
+      "nodeId": "S2-04",
+      "parentId": "STORY-2",
+      "nodeType": "feature",
+      "name": "04. 女友审查照片并点击“批准发奖”",
+      "description": "【用户视点】女友打开待审批卡片查看黑屏照片，满意见点“批准”，小李手机立刻收到 20 个女友奶茶币！",
+      "tags": ["story_2", "step_4"],
+      "assignRole": "全栈体验",
+      "assignee": "Alice + Bob",
       "status": "logic_verified",
-      "deps": ["B-03"],
+      "deps": ["S2-03"],
       "acceptanceCriteria": [
-        "POST /api/v1/tasks/approvals/{id}/approve 在同一个 DB 事务中完成加分与置done",
-        "审批防连击，重复点击返回 409",
-        "驳回必须强制填写原因，再次提交版本号 submit_version + 1"
+        "【端体验走查】女友点击批准后，小李端免刷新跨 Tab 自动翻转显示最新余额 (免手动下拉)",
+        "【端安全断言】女友如果驳回，必须输入驳回原因，小李收到醒目提醒并可重新提交"
       ],
       "externalBinding": {
-        "system": "pytest_runner",
-        "targetType": "api_test",
-        "targetId": "backend/tests/test_tasks_slice.py",
-        "meta": { "endpoint": "POST /api/v1/tasks/approvals/{instance_id}/approve" }
+        "system": "flutter_driver_e2e",
+        "targetType": "e2e_journey",
+        "targetId": "backend/tests/test_tasks_slice.py"
       },
-      "estimateHours": 12.0,
-      "actualHours": 10.0,
-      "outputs": ["backend/app/routers/approvals.py"],
+      "estimateHours": 10.0,
+      "actualHours": 9.0,
+      "outputs": ["frontend/lib/views/approval_center_page.dart"],
       "review": {
         "logicVerified": true,
-        "logicVerifiedBy": "test_tasks_slice.py (18/18全通)",
         "humanSignOff": false,
-        "comments": ["【后端逻辑全通】发奖与驳回留痕切片全通，等待 PM 终审！"]
+        "comments": ["【切片全通】审批加分到账 100% 验证通过，等待 PM 终审签字！"]
       }
     },
     {
-      "nodeId": "B-05",
-      "parentId": "LANE-B",
+      "nodeId": "S2-05",
+      "parentId": "STORY-2",
       "nodeType": "feature",
-      "name": "发行人上架专属 B 分商品 (指定可见与库存)",
-      "description": "上架出资履约的奖励，设定价格、库存与定向授权，授权伙伴在商城看到专属货架",
-      "tags": ["lane_b", "fulfillment"],
-      "assignRole": "fullstack",
+      "name": "05. 女友专属货架上架“请喝一杯奶茶”",
+      "description": "【用户视点】女友在自己的管理端上架商品：“请喝一杯手摇奶茶(标价20币，库存1份)”，仅小李可见",
+      "tags": ["story_2", "step_5"],
+      "assignRole": "全栈体验",
       "assignee": "Alice + Bob",
       "status": "review_pass",
-      "deps": ["B-01"],
+      "deps": ["S2-01"],
       "acceptanceCriteria": [
-        "被授权伙伴在商城能看到以该发行人命名的专属货架",
-        "不可指派给未绑定的陌生人，库存为 0 时不可再兑换"
+        "【端视觉走查】小李在商城看到以“女友名字”命名的专属甜蜜货架",
+        "【端隔离断言】库存与售价仅对授权亲友生效，他人无法窥探或兑换"
       ],
-      "estimateHours": 10.0,
-      "actualHours": 9.5,
+      "estimateHours": 8.0,
+      "actualHours": 7.5,
       "outputs": ["backend/app/routers/shop.py"],
       "review": { "logicVerified": true, "humanSignOff": true }
     },
     {
-      "nodeId": "B-06",
-      "parentId": "LANE-B",
+      "nodeId": "S2-06",
+      "parentId": "STORY-2",
       "nodeType": "feature",
-      "name": "执行人预扣 B 分兑换生成待核销订单",
-      "description": "从该发行人专属账本预扣 B 分，库存减 1，生成待发放订单，幂等防双扣，多发行人互不混用",
-      "tags": ["lane_b", "ledger", "fulfillment"],
-      "assignRole": "fullstack",
-      "assignee": "Alice + Bob",
+      "name": "06. 小李选购奶茶发起兑换预扣代币",
+      "description": "【用户视点】小李攒够 20 奶茶币，点击“立即兑换”，系统预扣 20 币，女友收到待履约提醒",
+      "tags": ["story_2", "step_6"],
+      "assignRole": "后端保障",
+      "assignee": "Bob (FastAPI)",
       "status": "deving",
-      "deps": ["B-04", "B-05"],
+      "deps": ["S2-04", "S2-05"],
       "acceptanceCriteria": [
-        "POST /api/v1/shop/items/{id}/redeem 携带 idempotency_key 防重放",
-        "兑换发行人 A 商品绝对不可扣除发行人 B 的代币，余额不足拦截并报 409",
-        "订单落库为 pending_fulfillment 状态"
+        "【端防双花断言】高并发连击防重复扣款，小李若有其他朋友的代币，绝对不可跨人串账",
+        "【端订单状态】生成一张“待女友发放核销”的履约订单"
       ],
       "externalBinding": {
         "system": "pytest_runner",
         "targetType": "api_test",
         "targetId": "backend/tests/test_shop_slice.py"
       },
-      "estimateHours": 16.0,
-      "actualHours": 12.0,
+      "estimateHours": 14.0,
+      "actualHours": 10.0,
       "outputs": ["backend/app/services/shop_order_service.py"],
       "review": {
         "logicVerified": false,
         "humanSignOff": false,
-        "comments": ["【研发施工中】预扣与单据生成已跑通，正在联调高并发幂等锁"]
+        "comments": ["【研发施工中】订单预扣已跑顺，正在收尾幂等锁与提示文案"]
       }
     },
     {
-      "nodeId": "B-07",
-      "parentId": "LANE-B",
+      "nodeId": "S2-07",
+      "parentId": "STORY-2",
       "nodeType": "feature",
-      "name": "发行人履约核销与原路退款闭环",
-      "description": "线下兑现后核销订单置为 fulfilled；若因故无法履约驳回订单原路全额退还对应发行人B分并恢复库存",
-      "tags": ["lane_b", "fulfillment", "ledger"],
-      "assignRole": "fullstack",
+      "name": "07. 周末女友买单核销请喝奶茶！",
+      "description": "【用户视点】周末约会女友买单请喝奶茶，点击“线下已核销”，订单圆满达成，闭环达成！",
+      "tags": ["story_2", "step_7"],
+      "assignRole": "全栈体验",
       "assignee": "Alice + Bob",
       "status": "deving",
-      "deps": ["B-06"],
+      "deps": ["S2-06"],
       "acceptanceCriteria": [
-        "确认发放后订单更新为 fulfilled，不可二次核销",
-        "驳回订单原路全额退还该发行人分户账本并恢复库存，绝不跨户串账"
+        "【端体验走查】女友点击核销，双方时间线动态流收到“奶茶已兑现”彩蛋卡片",
+        "【端退款断言】若女友因故驳回，预扣的 20 奶茶币如数原路退回小李账户"
       ],
-      "estimateHours": 14.0,
-      "actualHours": 7.0,
-      "outputs": ["backend/app/services/shop_refund_manager.py"],
+      "estimateHours": 12.0,
+      "actualHours": 6.0,
+      "outputs": ["frontend/lib/views/fulfillment_center_page.dart"],
       "review": {
         "logicVerified": false,
         "humanSignOff": false,
-        "comments": ["【研发施工中】正在攻坚原路退款跨分户事务补偿逻辑"]
+        "comments": ["【研发施工中】正在攻坚原路退款与库存返还事务补偿"]
       }
     },
 
     {
-      "nodeId": "C-SLOT-AUTH",
-      "parentId": "LANE-C",
+      "nodeId": "S3-01",
+      "parentId": "STORY-3",
       "nodeType": "feature",
-      "name": "基座就绪端口：用户鉴权 (UUID)",
-      "description": "【通用基座引用】本主线依赖的基础身份标识已通过",
-      "tags": ["lane_c", "proxy"],
-      "assignRole": "system",
-      "assignee": "系统已就绪",
-      "status": "review_pass",
-      "deps": [],
-      "acceptanceCriteria": ["主线所需用户 UUID 会话已就绪"],
-      "estimateHours": 0.0,
-      "actualHours": 0.0,
-      "outputs": [],
-      "review": {
-        "logicVerified": true,
-        "humanSignOff": true,
-        "comments": ["引自公共基座中心 INFRA-AUTH，状态同步导通"]
-      }
-    },
-    {
-      "nodeId": "C-01",
-      "parentId": "LANE-C",
-      "nodeType": "feature",
-      "name": "设立冲动消费克制储蓄挑战目标",
-      "description": "单一常驻挑战目标金额、诱因描述与三种破功惩罚算法模式（实际/折半/归零）",
-      "tags": ["lane_c", "self_discipline"],
-      "assignRole": "fullstack",
+      "name": "01. 设定存钱梦想: 存2000元换新手机",
+      "description": "【用户视点】小李进入储蓄罐，输入目标金额 2000 元，诱因选“抵制买盲盒与夜宵”，选定破功扣除模式",
+      "tags": ["story_3", "step_1"],
+      "assignRole": "全栈体验",
       "assignee": "Alice + Bob",
       "status": "review_pass",
-      "deps": ["C-SLOT-AUTH"],
+      "deps": ["S1-01"],
       "acceptanceCriteria": [
-        "同一时期严格保持一个活跃挑战，避免目标分散失效",
-        "选定破功惩罚模式：实际金额 / 折半扣除 / 进度清零"
+        "【端体验走查】生成一只可爱的小猪储蓄罐，初始进度 0%，界面温馨鼓励",
+        "【端约束断言】同一时期严格保持一个活跃挑战，集中火力攻克"
       ],
-      "estimateHours": 10.0,
-      "actualHours": 9.5,
+      "estimateHours": 8.0,
+      "actualHours": 7.5,
       "outputs": ["backend/app/routers/piggy_bank.py"],
       "review": { "logicVerified": true, "humanSignOff": true }
     },
     {
-      "nodeId": "C-02",
-      "parentId": "LANE-C",
+      "nodeId": "S3-02",
+      "parentId": "STORY-3",
       "nodeType": "feature",
-      "name": "随手记录省钱存入行为并维护连续天数",
-      "description": "抵制冲动消费点击忍住了随手记账，储蓄池增加，服务端基准维护 Streak 连续天数",
-      "tags": ["lane_c", "self_discipline"],
-      "assignRole": "fullstack",
+      "name": "02. 每次忍住不点外卖随手记一笔",
+      "description": "【用户视点】深夜想点 35 元烧烤，小李忍住了，掏出手机点击“忍住了💰”，存入 35 元，连续克制天数 +1",
+      "tags": ["story_3", "step_2"],
+      "assignRole": "全栈体验",
       "assignee": "Alice + Bob",
       "status": "review_pass",
-      "deps": ["C-01"],
+      "deps": ["S3-01"],
       "acceptanceCriteria": [
-        "储蓄池金额准确增加，生成 action=save 克制日志",
-        "连续克制天数基于服务端时区基准防篡改"
+        "【端动效走查】小猪存钱罐金币掉落音效与晃动动效，储蓄池进度条实时前进",
+        "【端防作弊断言】同一自然日多次存入天数不重复累加，跨自然日自动推进连续天数 (Streak)"
       ],
       "estimateHours": 8.0,
-      "actualHours": 7.5,
+      "actualHours": 7.0,
       "outputs": ["frontend/lib/views/savings_challenge_card.dart"],
       "review": { "logicVerified": true, "humanSignOff": true }
     },
     {
-      "nodeId": "C-03",
-      "parentId": "LANE-C",
-      "nodeType": "api",
-      "name": "冲动破功扣罚算法计算 (实际/折半/归零)",
-      "description": "发生冲动消费据实记录破功，根据预设算法模型扣罚储蓄池金额与天数，形成心理震慑",
-      "tags": ["lane_c", "self_discipline"],
-      "assignRole": "backend_dev",
-      "assignee": "Bob",
+      "nodeId": "S3-03",
+      "parentId": "STORY-3",
+      "nodeType": "feature",
+      "name": "03. 没忍住破功据实扣款警示自己",
+      "description": "【用户视点】周末冲动买了手办破功，小李据实点击“破功了💔”，系统扣除 50 元警示，提醒重拾自律",
+      "tags": ["story_3", "step_3"],
+      "assignRole": "全栈体验",
+      "assignee": "Alice + Bob",
       "status": "review_pass",
-      "deps": ["C-01"],
+      "deps": ["S3-01"],
       "acceptanceCriteria": [
-        "三种惩罚算法计算严格符合预期，扣减后最低降为 0 元，永不出现负数",
-        "生成一条 action=yield 的破功警示日志"
+        "【端心理学断言】按照预设惩罚公式扣减虚拟储蓄池，余额最低降为 0 元，绝不出现负数",
+        "【端反馈走查】弹出温暖而严肃的警示语，激励用户不要放弃"
       ],
-      "estimateHours": 10.0,
-      "actualHours": 9.0,
+      "estimateHours": 8.0,
+      "actualHours": 7.5,
       "outputs": ["backend/app/services/piggy_bank_calculator.py"],
       "review": { "logicVerified": true, "humanSignOff": true }
     },
     {
-      "nodeId": "C-04",
-      "parentId": "LANE-C",
+      "nodeId": "S3-04",
+      "parentId": "STORY-3",
       "nodeType": "feature",
-      "name": "储蓄满额通关彩带与健康用途发票登记",
-      "description": "储蓄池满额触发彩带通关动效，登记积蓄的真实健康用途与凭证说明并归档",
-      "tags": ["lane_c", "self_discipline"],
-      "assignRole": "fullstack",
+      "name": "04. 存满2000元！彩带飘舞登记发票",
+      "description": "【用户视点】小猪储蓄罐终于存满 2000 元！全屏彩带飞舞，小李上传购买新手机的发票登记封存！",
+      "tags": ["story_3", "step_4"],
+      "assignRole": "全栈体验",
       "assignee": "Alice + Bob",
       "status": "review_pass",
-      "deps": ["C-02", "C-03"],
+      "deps": ["S3-02", "S3-03"],
       "acceptanceCriteria": [
-        "达成目标触发彩带通关动效",
-        "成果用途必须填写发票/凭证说明并归档该挑战"
+        "【端高光时刻走查】满额瞬间全屏烟花彩带与成就达成徽章弹出，支持一键生成朋友圈海报",
+        "【端成果归档断言】填写消费发票凭证说明后，挑战完美沉淀至荣誉殿堂"
       ],
       "estimateHours": 8.0,
       "actualHours": 7.5,

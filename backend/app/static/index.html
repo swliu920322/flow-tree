@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>FlowTree 智能项目状态电路引擎 (v1.2 紧凑自适应蛇形版)</title>
+  <title>FlowTree 端到端用户故事走查与电路状态板</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- React 18 & Babel for JSX -->
@@ -39,16 +39,99 @@
   <script type="text/babel">
     const { useState, useEffect, useRef, useMemo, useCallback } = React;
 
-    const LANE_METADATA = {
-      "LANE-A": { id: "LANE-A", name: "航道一：个人自律践行闭环 (A分)", color: "#06b6d4", tag: "个人自律" },
-      "LANE-B": { id: "LANE-B", name: "航道二：伙伴他律与商城闭环 (B分)", color: "#a855f7", tag: "双人互勉" },
-      "LANE-C": { id: "LANE-C", name: "航道三：冲动克制储蓄挑战闭环", color: "#84cc16", tag: "心理学挑战" },
-      "LANE-INFRA": { id: "LANE-INFRA", name: "公共基座中心：鉴权/行级锁/测试门禁", color: "#38bdf8", tag: "底座测试" }
+    // ==========================================
+    // 故事旅程元数据字典 (E2E Storyboards & Lanes)
+    // ==========================================
+    const STORYBOARD_METADATA = {
+      "STORY-1": {
+        id: "STORY-1",
+        name: "🎭 故事一：打工人小李的自律逆袭记",
+        subtitle: "立Flag 晨跑打卡 ➔ 10个A币秒速到账 ➔ 买顿大餐犒赏自己 (个人A分闭环)",
+        color: "#06b6d4",
+        tag: "个人自律",
+        icon: "🏃‍♂️",
+        themeBg: "rgba(6, 182, 212, 0.08)",
+        themeBorder: "rgba(6, 182, 212, 0.3)"
+      },
+      "STORY-2": {
+        id: "STORY-2",
+        name: "🎭 故事二：小情侣的甜宠互勉大作战",
+        subtitle: "扫码绑定女友 ➔ 派发早睡任务 ➔ 拍照交作业 ➔ 女友审批发奖 ➔ 请喝奶茶核销 (伙伴B分闭环)",
+        color: "#ec4899",
+        tag: "情侣互勉",
+        icon: "👫",
+        themeBg: "rgba(236, 72, 153, 0.08)",
+        themeBorder: "rgba(236, 72, 153, 0.3)"
+      },
+      "STORY-3": {
+        id: "STORY-3",
+        name: "🎭 故事三：月光族抵抗奶茶诱惑存钱",
+        subtitle: "立2000元存钱梦想 ➔ 忍住不买随手记 ➔ 破功据实扣款警示 ➔ 存满买手机登记发票 (克制挑战)",
+        color: "#eab308",
+        tag: "克制存钱",
+        icon: "🐷",
+        themeBg: "rgba(234, 179, 8, 0.08)",
+        themeBorder: "rgba(234, 179, 8, 0.3)"
+      },
+      "LANE-A": {
+        id: "LANE-A",
+        name: "航道一：个人自律践行闭环 (A分)",
+        subtitle: "习惯打卡与个人分账",
+        color: "#06b6d4",
+        tag: "个人自律",
+        icon: "🏃‍♂️",
+        themeBg: "rgba(6, 182, 212, 0.08)",
+        themeBorder: "rgba(6, 182, 212, 0.3)"
+      },
+      "LANE-B": {
+        id: "LANE-B",
+        name: "航道二：伙伴他律与商城闭环 (B分)",
+        subtitle: "双人监督与商城兑换",
+        color: "#a855f7",
+        tag: "双人互勉",
+        icon: "👫",
+        themeBg: "rgba(168, 85, 247, 0.08)",
+        themeBorder: "rgba(168, 85, 247, 0.3)"
+      },
+      "LANE-C": {
+        id: "LANE-C",
+        name: "航道三：冲动克制储蓄挑战闭环",
+        subtitle: "心理学存钱罐挑战",
+        color: "#84cc16",
+        tag: "心理挑战",
+        icon: "🐷",
+        themeBg: "rgba(132, 204, 22, 0.08)",
+        themeBorder: "rgba(132, 204, 22, 0.3)"
+      },
+      "LANE-INFRA": {
+        id: "LANE-INFRA",
+        name: "公共基座中心：鉴权/行级锁/测试门禁",
+        subtitle: "基础服务与质量守护",
+        color: "#38bdf8",
+        tag: "底座测试",
+        icon: "🛡️",
+        themeBg: "rgba(56, 189, 248, 0.08)",
+        themeBorder: "rgba(56, 189, 248, 0.3)"
+      }
     };
 
+    function getStoryMeta(laneId) {
+      if (STORYBOARD_METADATA[laneId]) return STORYBOARD_METADATA[laneId];
+      return {
+        id: laneId,
+        name: laneId ? `旅程故事：${laneId}` : "端到端业务主链路",
+        subtitle: "端测试端到端用户流转序列",
+        color: "#10b981",
+        tag: laneId || "业务流",
+        icon: "🎬",
+        themeBg: "rgba(16, 185, 129, 0.08)",
+        themeBorder: "rgba(16, 185, 129, 0.3)"
+      };
+    }
+
     // ==========================================
-    // 工业级紧凑画布：自适应蛇形折返布局 (Snake Layout Engine)
-    // 彻底解决横向太长、一屏看不全的问题
+    // 工业级紧凑画布：用户故事自适应胶片机排布引擎
+    // (Adaptive Storyboard Flow Canvas)
     // ==========================================
     function AdaptiveCircuitCanvas({
       nodes,
@@ -58,11 +141,11 @@
       assigneeFilter,
       riskOnlyFilter,
       focusNodeId,
-      activeLane
+      onResetView
     }) {
       const containerRef = useRef(null);
 
-      const [transform, setTransform] = useState({ x: 50, y: 30, scale: 0.9 });
+      const [transform, setTransform] = useState({ x: 50, y: 40, scale: 0.95 });
       const transformRef = useRef(transform);
       transformRef.current = transform;
 
@@ -74,61 +157,68 @@
       const nodePositionsRef = useRef(nodePositions);
       nodePositionsRef.current = nodePositions;
 
+      const [laneBoxes, setLaneBoxes] = useState({});
+
       const draggingNodeRef = useRef(null);
 
-      // 1. 紧凑蛇形折返布局算法 (Snake / S-Shape Grid Layout)
-      // 每行排 3 个节点，超过后优雅折返到下一行，保持在一个紧凑矩形内！
+      // 自适应多故事排布计算
       useEffect(() => {
         if (!nodes || nodes.length === 0) {
           setNodePositions({});
+          setLaneBoxes({});
           return;
         }
 
-        const laneOrder = ["LANE-A", "LANE-B", "LANE-C", "LANE-INFRA"];
-        const laneNodesMap = { "LANE-A": [], "LANE-B": [], "LANE-C": [], "LANE-INFRA": [] };
+        // 1. 聚类分组 (保留原有顺序)
+        const laneMap = {};
+        const laneOrder = [];
 
         nodes.forEach(n => {
-          const lId = n.raw?.parentId || "LANE-INFRA";
-          if (!laneNodesMap[lId]) laneNodesMap[lId] = [];
-          laneNodesMap[lId].push(n);
+          const lId = n.raw?.parentId || "MAIN";
+          if (!laneMap[lId]) {
+            laneMap[lId] = [];
+            laneOrder.push(lId);
+          }
+          laneMap[lId].push(n);
         });
 
         const newPos = {};
+        const newBoxes = {};
+
         const cardWidth = 270;
-        const cardHeight = 120;
-        const gapX = 80;
-        const gapY = 60;
-        const maxCols = 3; // 一行最多3个节点，绝不无限横拉！
+        const cardHeight = 125;
+        const gapX = 75;
+        const gapY = 55;
+        const maxCols = 4; // 一行最多排 4 个步骤，超出自动折行，绝不无限延展横向画布
 
-        // 2x2 业务舱网格布局 (4个象限，一屏收纳全部业务)
-        const quadrantConfig = {
-          "LANE-A": { startX: 60, startY: 70 },
-          "LANE-B": { startX: 1120, startY: 70 },
-          "LANE-C": { startX: 60, startY: 480 },
-          "LANE-INFRA": { startX: 1120, startY: 480 }
-        };
+        let currentY = 80;
 
-        laneOrder.forEach((laneId) => {
-          const config = quadrantConfig[laneId];
-          const laneNodes = laneNodesMap[laneId] || [];
+        laneOrder.forEach((lId) => {
+          const lNodes = laneMap[lId];
+          const startX = 60;
+          const trackStartY = currentY;
 
-          // 业务舱标题胶囊
-          newPos[laneId] = {
-            x: config.startX,
-            y: config.startY - 35,
-            width: 360,
-            height: 30
+          const numNodes = lNodes.length;
+          const totalRows = Math.ceil(numNodes / maxCols);
+          const colsInFirstRow = Math.min(numNodes, maxCols);
+
+          const trackWidth = Math.max(380, colsInFirstRow * cardWidth + (colsInFirstRow - 1) * gapX + 60);
+          const trackHeight = totalRows * cardHeight + (totalRows - 1) * gapY + 70;
+
+          newBoxes[lId] = {
+            x: startX - 25,
+            y: trackStartY - 45,
+            width: trackWidth,
+            height: trackHeight,
+            nodeCount: numNodes
           };
 
-          // 蛇形折行计算
-          laneNodes.forEach((node, idx) => {
+          lNodes.forEach((node, idx) => {
             const row = Math.floor(idx / maxCols);
             const col = idx % maxCols;
 
-            // 奇数行蛇形从右向左，还是标准从左向右？
-            // 标准紧凑网格流向更清晰
-            const posX = config.startX + col * (cardWidth + gapX);
-            const posY = config.startY + row * (cardHeight + gapY);
+            const posX = startX + col * (cardWidth + gapX);
+            const posY = trackStartY + row * (cardHeight + gapY);
 
             newPos[node.id] = {
               x: posX,
@@ -136,15 +226,20 @@
               width: cardWidth,
               height: cardHeight,
               row,
-              col
+              col,
+              laneId: lId
             };
           });
+
+          // 下一个故事的纵向间距
+          currentY += trackHeight + 60;
         });
 
         setNodePositions(newPos);
+        setLaneBoxes(newBoxes);
       }, [nodes]);
 
-      // 2. 聚焦平移 (确保不被右侧抽屉遮挡)
+      // 聚焦节点平移 (自动预留右侧 460px 抽屉空间，居中在剩余可视区黄金分割点)
       const focusOnNode = useCallback((nodeId) => {
         const targetPos = nodePositionsRef.current[nodeId];
         const container = containerRef.current;
@@ -170,7 +265,7 @@
         }
       }, [focusNodeId, focusOnNode]);
 
-      // 3. 事件监听
+      // 全局鼠标拖拽与漫游
       useEffect(() => {
         const handleGlobalMouseMove = (e) => {
           if (isPanningRef.current) {
@@ -258,51 +353,28 @@
 
       const zoomIn = () => setTransform(prev => ({ ...prev, scale: Math.min(prev.scale * 1.2, 3.0) }));
       const zoomOut = () => setTransform(prev => ({ ...prev, scale: Math.max(prev.scale * 0.8, 0.2) }));
-      const resetView = () => setTransform({ x: 50, y: 30, scale: 0.9 });
+      const resetView = () => setTransform({ x: 50, y: 40, scale: 0.95 });
 
       return (
         <div
           ref={containerRef}
           onWheel={handleWheel}
           onMouseDown={handleCanvasMouseDown}
-          className={`relative w-full h-full overflow-hidden select-none bg-slate-950 ${
+          className={`relative w-full h-full select-none overflow-hidden bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:24px_24px] ${
             isPanning ? 'cursor-grabbing' : 'cursor-grab'
           }`}
-          style={{
-            backgroundImage: 'radial-gradient(circle, #334155 1.2px, transparent 1.2px)',
-            backgroundSize: `${26 * transform.scale}px ${26 * transform.scale}px`,
-            backgroundPosition: `${transform.x}px ${transform.y}px`
-          }}
         >
-          {/* 浮动控制工具条 */}
-          <div className="absolute bottom-6 left-6 z-20 flex items-center gap-1.5 bg-slate-900/95 border border-slate-800 rounded-xl p-1.5 shadow-2xl backdrop-blur-md">
-            <button
-              onClick={zoomIn}
-              className="w-8 h-8 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-300 font-bold hover:text-white"
-              title="放大"
-            >
-              +
-            </button>
-            <button
-              onClick={zoomOut}
-              className="w-8 h-8 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-300 font-bold hover:text-white"
-              title="缩小"
-            >
-              -
-            </button>
-            <button
-              onClick={resetView}
-              className="px-3 h-8 rounded-lg hover:bg-slate-800 flex items-center justify-center text-xs font-mono text-slate-300 hover:text-white font-medium"
-              title="复位2x2全景"
-            >
-              {Math.round(transform.scale * 100)}% 居中
-            </button>
-            <div className="text-[11px] text-slate-500 px-2 font-mono border-l border-slate-800">
-              💡 2x2 业务舱网格 · 蛇形折返流向 · 一屏尽收眼底
-            </div>
+          {/* 画布缩放控制条 */}
+          <div className="absolute bottom-6 left-6 z-20 flex items-center gap-1.5 bg-slate-900/90 border border-slate-700/80 rounded-xl p-1.5 shadow-2xl backdrop-blur-md">
+            <button onClick={zoomIn} title="放大" className="w-8 h-8 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-300 hover:text-white font-mono text-base font-bold">＋</button>
+            <button onClick={zoomOut} title="缩小" className="w-8 h-8 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-300 hover:text-white font-mono text-base font-bold">－</button>
+            <button onClick={resetView} title="居中还原" className="px-2.5 h-8 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-300 hover:text-white text-xs font-mono">⟲ 适应</button>
+            <span className="text-[11px] font-mono text-slate-400 px-2 border-l border-slate-800">
+              {Math.round(transform.scale * 100)}%
+            </span>
           </div>
 
-          {/* 可变换主画布 */}
+          {/* 转换平移容器 */}
           <div
             style={{
               transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
@@ -312,54 +384,55 @@
               pointerEvents: 'none'
             }}
           >
-            {/* 4 大业务舱半透明底板与标题 */}
-            {Object.keys(LANE_METADATA).map(lId => {
-              const meta = LANE_METADATA[lId];
-              const pos = nodePositions[lId];
-              if (!pos) return null;
-
-              const isLaneActive = activeLane === "all" || activeLane === lId;
+            {/* 用户故事舱背景卡片与标题 */}
+            {Object.keys(laneBoxes).map(lId => {
+              const meta = getStoryMeta(lId);
+              const box = laneBoxes[lId];
+              if (!box) return null;
 
               return (
                 <div key={lId}>
-                  {/* 业务舱半透明底衬卡片 (帮助一眼识别业务边界) */}
+                  {/* 故事旅程半透明底衬卡片 */}
                   <div
                     style={{
                       position: "absolute",
-                      left: `${pos.x - 20}px`,
-                      top: `${pos.y - 15}px`,
-                      width: "1000px",
-                      height: "380px",
+                      left: `${box.x}px`,
+                      top: `${box.y}px`,
+                      width: `${box.width}px`,
+                      height: `${box.height}px`,
                       pointerEvents: "none",
-                      opacity: isLaneActive ? 1 : 0.3
+                      backgroundColor: meta.themeBg,
+                      borderColor: meta.themeBorder
                     }}
-                    className="rounded-2xl border border-slate-800/80 bg-slate-900/40 backdrop-blur-sm -z-10"
+                    className="rounded-2xl border backdrop-blur-sm -z-10 transition-all duration-300 shadow-lg"
                   />
 
-                  {/* 业务舱标题 */}
+                  {/* 故事舱标题栏 */}
                   <div
                     style={{
                       position: "absolute",
-                      left: `${pos.x}px`,
-                      top: `${pos.y}px`,
-                      pointerEvents: "none",
-                      opacity: isLaneActive ? 1 : 0.4
+                      left: `${box.x + 20}px`,
+                      top: `${box.y + 14}px`,
+                      pointerEvents: "none"
                     }}
-                    className="flex items-center gap-2.5 z-0"
+                    className="flex items-center gap-3 z-0"
                   >
-                    <span className="w-2.5 h-2.5 rounded-full shadow-[0_0_8px_currentColor]" style={{ backgroundColor: meta.color, color: meta.color }} />
-                    <h3 className="font-bold text-xs tracking-wider text-slate-200 uppercase font-mono">
+                    <span className="text-base">{meta.icon}</span>
+                    <h3 className="font-bold text-sm tracking-wide text-slate-100 font-sans">
                       {meta.name}
                     </h3>
-                    <span className="text-[10px] px-2 py-0.5 rounded font-mono bg-slate-800 text-slate-400 border border-slate-700">
+                    <span className="text-[10px] px-2 py-0.5 rounded font-mono bg-slate-900/90 text-slate-300 border border-slate-700">
                       {meta.tag}
+                    </span>
+                    <span className="text-[11px] text-slate-400 font-normal hidden md:inline truncate max-w-[500px]">
+                      {meta.subtitle}
                     </span>
                   </div>
                 </div>
               );
             })}
 
-            {/* SVG 自适应导线层 (智能支持同行水平直连与换行 S 型圆角弯管) */}
+            {/* SVG 导线层 (支持同行动画电流与换行 S 型弯曲导线) */}
             <svg
               className="absolute pointer-events-none overflow-visible"
               style={{ width: '1px', height: '1px', left: 0, top: 0 }}
@@ -386,21 +459,21 @@
                 const tPos = nodePositions[e.target];
                 if (!sPos || !tPos) return null;
 
-                const isSameRow = Math.abs(sPos.y - tPos.y) < 30;
+                const isSameRow = Math.abs(sPos.y - tPos.y) < 25;
                 let d = "";
 
                 if (isSameRow) {
-                  // 同行：平直贝塞尔曲线
+                  // 同行：平直贝塞尔电流线
                   const startX = sPos.x + (sPos.width || 270);
-                  const startY = sPos.y + (sPos.height || 120) / 2;
+                  const startY = sPos.y + (sPos.height || 125) / 2;
                   const endX = tPos.x;
-                  const endY = tPos.y + (tPos.height || 120) / 2;
-                  const deltaX = Math.max(30, (endX - startX) / 2);
+                  const endY = tPos.y + (tPos.height || 125) / 2;
+                  const deltaX = Math.max(25, (endX - startX) / 2);
                   d = `M ${startX} ${startY} C ${startX + deltaX} ${startY}, ${endX - deltaX} ${endY}, ${endX} ${endY}`;
                 } else {
-                  // 跨行/换行折返：弯弯扭扭的电路圆角转弯 (S-Curve / U-Turn)
+                  // 跨行折返：S 型圆角转弯
                   const startX = sPos.x + (sPos.width || 270) / 2;
-                  const startY = sPos.y + (sPos.height || 120);
+                  const startY = sPos.y + (sPos.height || 125);
                   const endX = tPos.x + (tPos.width || 270) / 2;
                   const endY = tPos.y;
                   const midY = (startY + endY) / 2;
@@ -420,32 +493,38 @@
                   if (!sMatch && !tMatch) edgeOpacity = 0.15;
                 }
 
+                let strokeColor = "#334155";
+                let strokeWidth = 2.5;
+                let strokeFilter = "";
+
+                if (isBlocked) {
+                  strokeColor = "#ef4444";
+                  strokeWidth = 3;
+                  strokeFilter = "url(#glowRed)";
+                } else if (isEnergized) {
+                  strokeColor = "#10b981";
+                  strokeWidth = 3;
+                  strokeFilter = "url(#glowGreen)";
+                }
+
                 return (
-                  <g key={e.id} style={{ opacity: edgeOpacity }} className="transition-opacity duration-200">
+                  <g key={e.id} opacity={edgeOpacity}>
                     <path
                       d={d}
                       fill="none"
-                      stroke={isBlocked ? "#7f1d1d" : isEnergized ? "#064e3b" : "#334155"}
-                      strokeWidth={isEnergized ? "3.5" : "2"}
+                      stroke={strokeColor}
+                      strokeWidth={strokeWidth}
+                      filter={strokeFilter}
+                      className={isEnergized ? "flow-wire" : ""}
                     />
-                    {e.flowAnimation && (
+                    {isEnergized && (
                       <path
                         d={d}
                         fill="none"
-                        stroke="#10B981"
-                        strokeWidth="3"
+                        stroke="#a7f3d0"
+                        strokeWidth={1.5}
+                        strokeDasharray="4, 16"
                         className="flow-wire"
-                        filter="url(#glowGreen)"
-                      />
-                    )}
-                    {isBlocked && (
-                      <path
-                        d={d}
-                        fill="none"
-                        stroke="#EF4444"
-                        strokeWidth="2.5"
-                        strokeDasharray="6,4"
-                        filter="url(#glowRed)"
                       />
                     )}
                   </g>
@@ -453,7 +532,7 @@
               })}
             </svg>
 
-            {/* 紧凑节点元器件层 (270x120 比例，大字号、高可读) */}
+            {/* 紧凑故事步骤卡片层 (270x125 比例，清晰直观的用户视点) */}
             {nodes.map(node => {
               const pos = nodePositions[node.id];
               if (!pos) return null;
@@ -479,31 +558,35 @@
               let bulbBg = "bg-slate-700 text-slate-400";
               let cardBorder = "border-slate-800 bg-slate-900/95";
               let bulbGlowClass = "";
-              let statusLabel = "待开工";
+              let statusLabel = "待启动";
 
               if (isProxySlot) {
                 bulbBg = "bg-sky-400 shadow-[0_0_12px_#38bdf8]";
                 cardBorder = "border-sky-500/40 bg-sky-950/20";
-                statusLabel = "基座就绪 (引自公共中心)";
+                statusLabel = "通用基座 (已就绪)";
               } else if (bulb === "green_on") {
                 bulbBg = "bg-emerald-500 text-white shadow-[0_0_15px_#10b981]";
                 cardBorder = "border-emerald-500/60 bg-emerald-950/30";
-                statusLabel = "已导通·通过";
+                statusLabel = "端验收通过";
               } else if (bulb === "blue_waiting") {
                 bulbBg = "bg-sky-500 text-white shadow-[0_0_15px_#0ea5e9]";
                 cardBorder = "border-sky-500/60 bg-sky-950/30";
-                statusLabel = "待终审 (逻辑已过)";
+                statusLabel = "待人工终审";
               } else if (bulb === "breathing") {
                 bulbBg = "bg-amber-500 text-white";
                 cardBorder = "border-amber-500/60 bg-amber-950/30";
                 bulbGlowClass = "bulb-breathing";
-                statusLabel = "通电施工中";
+                statusLabel = "体验走查中";
               } else if (bulb === "red_alert") {
                 bulbBg = "bg-rose-600 text-white";
                 cardBorder = "border-rose-600/80 bg-rose-950/40";
                 bulbGlowClass = "bulb-alert";
-                statusLabel = "短路熔断报警";
+                statusLabel = "缺陷阻断";
               }
+
+              // 提取用户故事简要说明 (第一句)
+              const desc = node.raw?.description || "";
+              const cleanDesc = desc.replace("【用户视点】", "").trim();
 
               return (
                 <div
@@ -527,10 +610,11 @@
                     isSelected ? "ring-2 ring-emerald-400 scale-[1.03] z-10" : isFocus ? "hover:border-slate-500 hover:scale-[1.01]" : ""
                   }`}
                 >
+                  {/* 卡片头部：状态灯泡 + 标题 + 步骤ID */}
                   <div className="flex items-start justify-between gap-1.5">
-                    <div className="flex items-center gap-2 overflow-hidden">
+                    <div className="flex items-center gap-2 overflow-hidden flex-1">
                       <div className={`w-3.5 h-3.5 rounded-full shrink-0 ${bulbBg} ${bulbGlowClass}`} />
-                      <span className="font-semibold text-xs truncate text-slate-100 group-hover:text-emerald-300">
+                      <span className="font-bold text-xs truncate text-slate-100 group-hover:text-emerald-300">
                         {node.label}
                       </span>
                     </div>
@@ -539,17 +623,26 @@
                     </span>
                   </div>
 
-                  <div className="text-[11px] font-mono text-slate-400 flex items-center justify-between">
-                    <span className={isProxySlot ? "text-sky-300 font-bold" : ""}>{statusLabel}</span>
+                  {/* 用户故事体验摘要 */}
+                  <p className="text-[11px] text-slate-400 line-clamp-1 leading-snug">
+                    {cleanDesc || "端到端交互走查节点"}
+                  </p>
+
+                  {/* 状态与时间 */}
+                  <div className="text-[10px] font-mono text-slate-400 flex items-center justify-between">
+                    <span className={isProxySlot ? "text-sky-300 font-bold" : bulb === "green_on" ? "text-emerald-400 font-medium" : bulb === "blue_waiting" ? "text-sky-400 font-medium" : ""}>
+                      {statusLabel}
+                    </span>
                     <span className="text-slate-500">{node.dataOverlay.hours}</span>
                   </div>
 
+                  {/* 底部角色与契约标记 */}
                   <div className="flex items-center justify-between text-[11px] pt-1.5 border-t border-slate-800/80">
                     <div className="flex items-center gap-1.5 text-slate-400">
                       <span className="w-4 h-4 rounded-full bg-slate-800 flex items-center justify-center text-[9px] text-slate-300 font-bold">
                         {node.dataOverlay.assignee ? node.dataOverlay.assignee[0] : "?"}
                       </span>
-                      <span className="truncate max-w-[100px] text-[10px]">{node.dataOverlay.assignee || "未分配"}</span>
+                      <span className="truncate max-w-[110px] text-[10px]">{node.dataOverlay.assignee || "未分配"}</span>
                     </div>
 
                     <div className="flex items-center gap-1">
@@ -583,27 +676,30 @@
       const [selectedNode, setSelectedNode] = useState(null);
       const [focusNodeId, setFocusNodeId] = useState(null);
       const [loading, setLoading] = useState(true);
-      const [isSimulating, setIsSimulating] = useState(false);
 
       const [assigneeFilter, setAssigneeFilter] = useState("all");
       const [riskOnlyFilter, setRiskOnlyFilter] = useState(false);
+      const [isSimulating, setIsSimulating] = useState(false);
 
-      // 计算各航道管理大盘点亮指标
-      const laneOverview = useMemo(() => {
+      // 计算各故事大盘点亮指标
+      const storyOverview = useMemo(() => {
         if (!canvasData?.nodes) return {};
         const result = {};
-        Object.keys(LANE_METADATA).forEach(lId => {
-          result[lId] = { total: 0, pass: 0, waiting: 0, deving: 0 };
+
+        // 预置故事
+        ["STORY-1", "STORY-2", "STORY-3"].forEach(sId => {
+          result[sId] = { total: 0, pass: 0, waiting: 0, deving: 0 };
         });
 
         canvasData.nodes.forEach(n => {
-          const lId = n.raw?.parentId || "LANE-INFRA";
-          if (!result[lId]) result[lId] = { total: 0, pass: 0, waiting: 0, deving: 0 };
-          result[lId].total += 1;
-          if (n.status === "review_pass") result[lId].pass += 1;
-          else if (n.status === "logic_verified") result[lId].waiting += 1;
-          else if (n.status === "deving") result[lId].deving += 1;
+          const sId = n.raw?.parentId || "OTHER";
+          if (!result[sId]) result[sId] = { total: 0, pass: 0, waiting: 0, deving: 0 };
+          result[sId].total += 1;
+          if (n.status === "review_pass") result[sId].pass += 1;
+          else if (n.status === "logic_verified") result[sId].waiting += 1;
+          else if (n.status === "deving") result[sId].deving += 1;
         });
+
         return result;
       }, [canvasData]);
 
@@ -662,8 +758,12 @@
       const handleSimulateAgent = async () => {
         setIsSimulating(true);
         try {
-          await fetch(`/api/projects/${currentProjectId}/simulate-agent`, { method: "POST" });
+          await fetch(`/api/projects/${currentProjectId}/simulate/run-agent-tests`, {
+            method: "POST"
+          });
           await fetchProjectData(currentProjectId, activeViewId);
+        } catch (err) {
+          console.error("Agent 模拟执行失败:", err);
         } finally {
           setIsSimulating(false);
         }
@@ -675,28 +775,20 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             status: "review_pass",
-            reviewComments: ["【人类终审】交互体验验收合格，确认签字并放电！"],
+            reviewComments: ["【真机走查验收】端到端交互符合预期，确认签字通电！"],
             source: "human_reviewer"
           })
         });
         await fetchProjectData(currentProjectId, activeViewId);
       };
 
-      const handleJumpToInfra = () => {
-        setFocusNodeId("INFRA-AUTH");
-        const infraNode = canvasData?.nodes.find(n => n.id === "INFRA-AUTH");
-        if (infraNode) setSelectedNode(infraNode.raw);
-      };
-
       if (loading) {
         return (
           <div className="h-screen flex items-center justify-center bg-slate-950 text-emerald-400 font-mono text-lg">
-            ⚡ 正在规划紧凑蛇形电路矩阵...
+            ⚡ 正在规划端到端用户故事走查板...
           </div>
         );
       }
-
-      const stats = canvasData?.stats || { totalNodes: 0, energizedNodes: 0, blockedNodes: 0, progressRate: 0 };
 
       return (
         <div className="flex flex-col h-screen bg-slate-950">
@@ -721,25 +813,32 @@
                 <span className="text-[11px] px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 font-mono">
                   {projectMeta?.version}
                 </span>
+                <span className="text-[11px] px-2 py-0.5 rounded bg-sky-950 text-sky-400 border border-sky-800 font-mono">
+                  {projectMeta?.stage || "验收中"}
+                </span>
               </div>
             </div>
 
-            {/* 管理者视角：4 大航道点亮度大盘微缩卡 (一眼看全局点亮) */}
+            {/* 管理者视角：用户故事全景通电点亮大盘 */}
             <div className="flex items-center gap-3">
-              {Object.keys(LANE_METADATA).map(lId => {
-                const meta = LANE_METADATA[lId];
-                const s = laneOverview[lId] || { total: 0, pass: 0, waiting: 0, deving: 0 };
-                const pct = s.total > 0 ? Math.round((s.pass / s.total) * 100) : 0;
+              {Object.keys(storyOverview).map(sId => {
+                const meta = getStoryMeta(sId);
+                const s = storyOverview[sId];
+                if (!s || s.total === 0) return null;
+                const pct = Math.round((s.pass / s.total) * 100);
 
                 return (
                   <div
-                    key={lId}
-                    className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-[11px] font-mono"
+                    key={sId}
+                    className="flex items-center gap-2 px-3 py-1 rounded-lg bg-slate-950 border border-slate-800 text-xs font-mono shadow-sm"
                   >
-                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: meta.color }} />
-                    <span className="text-slate-400 truncate max-w-[80px]">{meta.tag}</span>
+                    <span>{meta.icon}</span>
+                    <span className="text-slate-400 font-sans">{meta.tag}</span>
+                    <div className="w-14 h-1.5 rounded-full bg-slate-800 overflow-hidden">
+                      <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${pct}%` }} />
+                    </div>
                     <span className="font-bold text-emerald-400">{pct}%</span>
-                    {s.waiting > 0 && <span className="text-sky-400">({s.waiting}待审)</span>}
+                    {s.waiting > 0 && <span className="text-sky-400 font-sans text-[11px]">({s.waiting}待审)</span>}
                   </div>
                 );
               })}
@@ -753,16 +852,16 @@
                 className="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs flex items-center gap-1.5 shadow-[0_0_15px_rgba(16,185,129,0.4)] transition-all active:scale-95"
               >
                 <span>⚡</span>
-                <span>{isSimulating ? "Agent 追踪中..." : "触发 Agent 状态联动"}</span>
+                <span>{isSimulating ? "Agent 校验中..." : "触发 Agent 状态联动"}</span>
               </button>
             </div>
           </header>
 
-          {/* 第二栏：业务航道透镜 + 负责人筛选与风险过滤 */}
+          {/* 第二栏：用户故事透镜 + 负责人筛选与风险过滤 */}
           <div className="h-12 border-b border-slate-800 px-6 flex items-center justify-between bg-slate-900/60 shrink-0 z-20">
-            {/* 左侧：业务航道透镜 */}
+            {/* 左侧：用户故事透镜 */}
             <div className="flex items-center gap-1.5 overflow-x-auto custom-scroll">
-              <span className="text-xs text-slate-500 mr-1 font-mono shrink-0">航道透镜:</span>
+              <span className="text-xs text-slate-500 mr-1 font-mono shrink-0">故事走查透镜:</span>
               {projectMeta?.perspectives.map((p) => {
                 const isActive = activeViewId === p.viewId;
                 return (
@@ -784,16 +883,16 @@
             {/* 右侧：负责人与风险过滤 */}
             <div className="flex items-center gap-4 shrink-0">
               <div className="flex items-center gap-1.5 text-xs">
-                <span className="text-slate-500 font-mono">负责人聚焦:</span>
+                <span className="text-slate-500 font-mono">参与者聚焦:</span>
                 <select
                   value={assigneeFilter}
                   onChange={(e) => setAssigneeFilter(e.target.value)}
                   className="bg-slate-800 border border-slate-700 text-slate-200 rounded px-2.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
                 >
-                  <option value="all">全部人员 (透镜关闭)</option>
-                  <option value="Alice">Alice (前端 Flutter)</option>
-                  <option value="Bob">Bob (后端 FastAPI)</option>
-                  <option value="Carol">Carol (QA 质量架构)</option>
+                  <option value="all">全部参与者 (全景)</option>
+                  <option value="Alice">Alice (前端体验)</option>
+                  <option value="Bob">Bob (后端分账)</option>
+                  <option value="Carol">Carol (质量门禁)</option>
                 </select>
               </div>
 
@@ -804,7 +903,7 @@
                   onChange={(e) => setRiskOnlyFilter(e.target.checked)}
                   className="rounded bg-slate-800 border-slate-700 text-emerald-500 focus:ring-0 cursor-pointer"
                 />
-                <span className="font-mono text-amber-400">只看卡点与待审</span>
+                <span className="font-mono text-amber-400">只看卡点与待终审</span>
               </label>
             </div>
           </div>
@@ -823,7 +922,7 @@
               />
             </div>
 
-            {/* 右侧抽屉 */}
+            {/* 右侧端测试验收抽屉 */}
             {selectedNode && (
               <div className="w-[460px] border-l border-slate-700/80 bg-slate-900 h-full flex flex-col shadow-2xl z-30 animate-in slide-in-from-right duration-150">
                 <div className="p-5 border-b border-slate-800 bg-slate-950/60 flex items-start justify-between">
@@ -848,34 +947,16 @@
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-5 space-y-4 text-xs custom-scroll bg-slate-900">
-                  {selectedNode.tags?.includes("proxy") && (
-                    <div className="bg-sky-950/30 p-4 rounded-xl border border-sky-800/60 space-y-2">
-                      <div className="font-bold text-sky-300 text-xs flex items-center justify-between">
-                        <span>🔌 通用底座依赖端口 (已解耦)</span>
-                        <span className="text-[10px] text-emerald-400 font-mono">● 已导通</span>
-                      </div>
-                      <p className="text-[11px] text-slate-300 leading-relaxed">
-                        本业务航道依赖的通用用户认证已通过。通用模块独立于业务流程测试，不随业务流重复运行。
-                      </p>
-                      <button
-                        onClick={handleJumpToInfra}
-                        className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-medium text-xs flex items-center gap-1.5 shadow transition-all"
-                      >
-                        <span>🔍</span>
-                        <span>跳转查看公共基座中心测试详情</span>
-                      </button>
-                    </div>
-                  )}
-
+                  {/* 流转状态卡 */}
                   <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2.5">
                     <div className="flex justify-between items-center">
-                      <span className="text-slate-400">当前流转状态:</span>
+                      <span className="text-slate-400">端走查状态:</span>
                       <span className="font-mono font-bold text-emerald-400 px-2 py-0.5 rounded bg-emerald-950 border border-emerald-800">
                         {selectedNode.status}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-400">责任人角色:</span>
+                      <span className="text-slate-400">责任人 / 角色:</span>
                       <span className="text-slate-200 font-medium">{selectedNode.assignee || "未指定"} ({selectedNode.assignRole || "-"})</span>
                     </div>
                     <div className="flex justify-between">
@@ -884,6 +965,7 @@
                     </div>
                   </div>
 
+                  {/* 自动化测试契约 */}
                   {selectedNode.externalBinding && (
                     <div className="bg-indigo-950/30 p-4 rounded-xl border border-indigo-900/60 space-y-2">
                       <div className="font-semibold text-indigo-300 flex items-center gap-1.5 text-xs">
@@ -899,9 +981,10 @@
                     </div>
                   )}
 
+                  {/* 端体验与客观验收标准 DoD */}
                   <div>
                     <h3 className="font-semibold text-slate-200 mb-2 flex items-center gap-1.5 text-sm">
-                      <span>📋 客观逻辑验收标准 (DoD)</span>
+                      <span>📋 端体验与客观验收标准 (DoD)</span>
                     </h3>
                     <ul className="space-y-2">
                       {selectedNode.acceptanceCriteria?.map((ac, idx) => (
@@ -913,9 +996,10 @@
                     </ul>
                   </div>
 
+                  {/* 审查与反馈意见 */}
                   <div>
                     <h3 className="font-semibold text-slate-200 mb-2 flex items-center gap-1.5 text-sm">
-                      <span>💬 自动化与人工审查报告</span>
+                      <span>💬 真机体验走查反馈意见</span>
                     </h3>
                     <div className="space-y-2">
                       {selectedNode.review?.comments?.length > 0 ? (
@@ -925,23 +1009,24 @@
                           </div>
                         ))
                       ) : (
-                        <div className="text-slate-500 italic p-3 bg-slate-950 rounded-xl">暂无审查反馈</div>
+                        <div className="text-slate-500 italic p-3 bg-slate-950 rounded-xl">暂无走查反馈</div>
                       )}
                     </div>
                   </div>
                 </div>
 
+                {/* 底部操作区 */}
                 <div className="p-5 border-t border-slate-800 bg-slate-950">
                   {selectedNode.status === "logic_verified" ? (
                     <div className="space-y-2.5">
                       <div className="text-[11px] text-sky-400 font-mono flex items-center gap-1">
-                        <span>💡 自动化切片已跑通，等待 PM/架构师 终审签字</span>
+                        <span>💡 客观逻辑已通，请体验设计师/PM 完成最终放电审批</span>
                       </div>
                       <button
                         onClick={() => handleHumanSignOff(selectedNode.nodeId)}
                         className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-medium rounded-xl shadow-[0_0_15px_rgba(16,185,129,0.4)] text-xs transition-all active:scale-95"
                       >
-                        ✓ 人工终审通过 (Sign-off) 并放电
+                        ✓ 确认真机体验合格·终审签字通电 (Sign-off)
                       </button>
                     </div>
                   ) : selectedNode.status === "review_pass" ? (
@@ -950,11 +1035,11 @@
                     </div>
                   ) : selectedNode.status === "deving" ? (
                     <div className="text-center py-2 text-xs text-amber-400 font-mono bg-amber-950/30 rounded-lg border border-amber-900/50">
-                      ◐ 依赖能量已注入，全栈研发施工中...
+                      ◐ 体验设计与研发走查中...
                     </div>
                   ) : (
                     <div className="text-center py-2 text-xs text-slate-500 font-mono bg-slate-900 rounded-lg border border-slate-800">
-                      ○ 依赖链路施工中，等待激活
+                      ○ 依赖步骤尚未完成，等待激活
                     </div>
                   )}
                 </div>
