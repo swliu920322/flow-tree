@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>FlowTree 智能项目状态电路引擎 (v1.0 MVP)</title>
+  <title>FlowTree 智能项目状态电路引擎 (v1.1 清爽航道版)</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- React 18 & Babel for JSX -->
@@ -30,43 +30,39 @@
     }
     .bulb-alert { animation: alertFlash 1.5s infinite ease-in-out; }
     .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
-    .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
   </style>
 </head>
 <body class="bg-slate-950 text-slate-100 font-sans min-h-screen overflow-hidden selection:bg-emerald-500 selection:text-white">
   <div id="root"></div>
 
   <script type="text/babel">
-    const { useState, useEffect, useRef, useMemo } = React;
+    const { useState, useEffect, useRef, useMemo, useCallback } = React;
 
-    // 8 大模块基础元数据定义
-    const MODULE_METADATA = {
-      "MOD-01": { id: "MOD-01", name: "模块一：鉴权与账号记忆", color: "#38bdf8" },
-      "MOD-02": { id: "MOD-02", name: "模块二：伙伴关系契约网络", color: "#a855f7" },
-      "MOD-03": { id: "MOD-03", name: "模块三：双代币隔离分账引擎", color: "#10b981" },
-      "MOD-04": { id: "MOD-04", name: "模块四：自律任务与手风琴树卡", color: "#06b6d4" },
-      "MOD-05": { id: "MOD-05", name: "模块五：他律指派与审批中心", color: "#f59e0b" },
-      "MOD-06": { id: "MOD-06", name: "模块六：心愿兑现与伙伴商城", color: "#ec4899" },
-      "MOD-07": { id: "MOD-07", name: "模块七：克制储蓄挑战罐", color: "#84cc16" },
-      "MOD-08": { id: "MOD-08", name: "模块八：全域状态同构与审计流", color: "#6366f1" }
+    // 4 大业务航道元数据
+    const LANE_METADATA = {
+      "LANE-A": { id: "LANE-A", name: "业务航道一：个人自律践行与心愿达成闭环 (A分线)", color: "#06b6d4", tag: "个人闭环" },
+      "LANE-B": { id: "LANE-B", name: "业务航道二：伙伴他律激励与商城履约闭环 (B分线)", color: "#a855f7", tag: "伙伴互勉" },
+      "LANE-C": { id: "LANE-C", name: "业务航道三：冲动克制储蓄挑战闭环", color: "#84cc16", tag: "心理学挑战" },
+      "LANE-INFRA": { id: "LANE-INFRA", name: "公共基座中心：身份鉴权、行级排他锁与测试门禁", color: "#38bdf8", tag: "独立底座" }
     };
 
     // ==========================================
-    // 工业级交互画布：支持模块折叠展开、负责人透镜高亮与自由拖拽平移
+    // 工业级交互画布：无交错乱线，支持自动平移聚焦，杜绝抽屉遮挡
     // ==========================================
-    function InteractiveCircuitCanvas({
+    function StreamlinedCircuitCanvas({
       nodes,
       edges,
       onNodeSelect,
       selectedNodeId,
-      collapsedModules,
-      onToggleModule,
       assigneeFilter,
-      riskOnlyFilter
+      riskOnlyFilter,
+      focusNodeId
     }) {
       const containerRef = useRef(null);
 
-      const [transform, setTransform] = useState({ x: 80, y: 60, scale: 0.85 });
+      // 画布视口平移与缩放 (初始居中)
+      const [transform, setTransform] = useState({ x: 60, y: 40, scale: 0.85 });
       const transformRef = useRef(transform);
       transformRef.current = transform;
 
@@ -80,91 +76,86 @@
 
       const draggingNodeRef = useRef(null);
 
-      // 计算模块聚合状态
-      const moduleStats = useMemo(() => {
-        const stats = {};
-        Object.keys(MODULE_METADATA).forEach(mId => {
-          stats[mId] = { total: 0, pass: 0, waiting: 0, deving: 0, blocked: 0, hours: 0 };
-        });
-
-        nodes.forEach(n => {
-          const mId = n.raw?.parentId || "MOD-01";
-          if (!stats[mId]) stats[mId] = { total: 0, pass: 0, waiting: 0, deving: 0, blocked: 0, hours: 0 };
-          stats[mId].total += 1;
-          stats[mId].hours += n.raw.estimateHours || 0;
-          if (n.status === "review_pass") stats[mId].pass += 1;
-          else if (n.status === "logic_verified") stats[mId].waiting += 1;
-          else if (n.status === "deving") stats[mId].deving += 1;
-          else if (n.status === "review_reject") stats[mId].blocked += 1;
-        });
-        return stats;
-      }, [nodes]);
-
-      // 过滤与可见节点计算 (折叠逻辑)
-      const visibleNodes = useMemo(() => {
-        return nodes.filter(n => {
-          const mId = n.raw?.parentId;
-          // 若父模块被折叠，则隐藏该子节点
-          if (mId && collapsedModules[mId]) return false;
-          // 卡点过滤器
-          if (riskOnlyFilter) {
-            if (n.status === "review_pass") return false;
-          }
-          return true;
-        });
-      }, [nodes, collapsedModules, riskOnlyFilter]);
-
-      // 自动计算布局 (模块化左右分层)
+      // 1. 严格按照 4 大航道从左至右水平排布 (每条航道是一条平直清晰的高速公路)
       useEffect(() => {
         if (!nodes || nodes.length === 0) {
           setNodePositions({});
           return;
         }
 
-        // 模块顺序
-        const moduleOrder = ["MOD-01", "MOD-02", "MOD-03", "MOD-04", "MOD-05", "MOD-06", "MOD-07", "MOD-08"];
-        const moduleNodesMap = {};
-        moduleOrder.forEach(mId => { moduleNodesMap[mId] = []; });
+        const laneOrder = ["LANE-A", "LANE-B", "LANE-C", "LANE-INFRA"];
+        const laneNodesMap = { "LANE-A": [], "LANE-B": [], "LANE-C": [], "LANE-INFRA": [] };
 
-        visibleNodes.forEach(n => {
-          const mId = n.raw?.parentId || "MOD-01";
-          if (!moduleNodesMap[mId]) moduleNodesMap[mId] = [];
-          moduleNodesMap[mId].push(n);
+        nodes.forEach(n => {
+          const lId = n.raw?.parentId || "LANE-INFRA";
+          if (!laneNodesMap[lId]) laneNodesMap[lId] = [];
+          laneNodesMap[lId].push(n);
         });
 
         const newPos = {};
-        const colWidth = 340;
-        const gapX = 160;
-        let currentX = 80;
+        const cardWidth = 320;
+        const cardHeight = 135;
+        const gapX = 140;
+        const laneGapY = 220; // 航道之间垂直间隔
 
-        moduleOrder.forEach((mId, mIdx) => {
-          const isCollapsed = collapsedModules[mId];
-          const subNodes = moduleNodesMap[mId] || [];
+        let currentLaneY = 80;
 
-          // 模块胶囊坐标
-          const modX = currentX;
-          const modY = 40;
-          newPos[mId] = { x: modX, y: modY, width: 340, height: isCollapsed ? 100 : 70 };
+        laneOrder.forEach((laneId) => {
+          const laneNodes = laneNodesMap[laneId] || [];
 
-          if (!isCollapsed) {
-            // 展开子用例
-            subNodes.forEach((node, nIdx) => {
-              newPos[node.id] = {
-                x: modX,
-                y: 140 + nIdx * 150,
-                width: 320,
-                height: 135
-              };
-            });
-          }
+          // 记录航道标题栏坐标
+          newPos[laneId] = {
+            x: 60,
+            y: currentLaneY - 45,
+            width: 400,
+            height: 35
+          };
 
-          currentX += colWidth + gapX;
+          // 航道内部节点从左到右水平单向排开
+          laneNodes.forEach((node, idx) => {
+            newPos[node.id] = {
+              x: 60 + idx * (cardWidth + gapX),
+              y: currentLaneY,
+              width: cardWidth,
+              height: cardHeight
+            };
+          });
+
+          currentLaneY += cardHeight + laneGapY;
         });
 
         setNodePositions(newPos);
-      }, [nodes, visibleNodes, collapsedModules]);
+      }, [nodes]);
 
-      // 全局事件监听 (防卡顿)
+      // 2. 自动聚焦到选中的节点（智能平移，确保该节点居中在左侧黄金可视区，绝对不被右侧抽屉遮挡）
+      const focusOnNode = useCallback((nodeId) => {
+        const targetPos = nodePositionsRef.current[nodeId];
+        const container = containerRef.current;
+        if (!targetPos || !container) return;
+
+        const rect = container.getBoundingClientRect();
+        // 右侧抽屉占 460px，左侧剩余可视宽度
+        const availableWidth = rect.width - 460;
+        const availableHeight = rect.height;
+
+        const scale = transformRef.current.scale;
+        // 目标节点的中心相对视口居中
+        const nodeCenterX = targetPos.x + targetPos.width / 2;
+        const nodeCenterY = targetPos.y + targetPos.height / 2;
+
+        const targetX = availableWidth / 2 - nodeCenterX * scale;
+        const targetY = availableHeight / 2 - nodeCenterY * scale;
+
+        setTransform({ x: targetX, y: targetY, scale });
+      }, []);
+
+      useEffect(() => {
+        if (focusNodeId) {
+          focusOnNode(focusNodeId);
+        }
+      }, [focusNodeId, focusOnNode]);
+
+      // 3. 全局事件监听 (防失焦卡顿)
       useEffect(() => {
         const handleGlobalMouseMove = (e) => {
           if (isPanningRef.current) {
@@ -215,6 +206,7 @@
         e.preventDefault();
         const container = containerRef.current;
         if (!container) return;
+
         const rect = container.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
@@ -251,7 +243,7 @@
 
       const zoomIn = () => setTransform(prev => ({ ...prev, scale: Math.min(prev.scale * 1.2, 3.0) }));
       const zoomOut = () => setTransform(prev => ({ ...prev, scale: Math.max(prev.scale * 0.8, 0.2) }));
-      const resetView = () => setTransform({ x: 80, y: 60, scale: 0.85 });
+      const resetView = () => setTransform({ x: 60, y: 40, scale: 0.85 });
 
       return (
         <div
@@ -286,12 +278,12 @@
             <button
               onClick={resetView}
               className="px-3 h-8 rounded-lg hover:bg-slate-800 flex items-center justify-center text-xs font-mono text-slate-300 hover:text-white font-medium"
-              title="复位视角"
+              title="复位航道全景"
             >
               {Math.round(transform.scale * 100)}% 居中
             </button>
             <div className="text-[11px] text-slate-500 px-2 font-mono border-l border-slate-800">
-              💡 鼠标拖动画布 / 滚轮自由缩放 / 拖拽节点卡片 / 点击模块右上角收放
+              💡 纯净航道流向 / 点击节点自动居中至可视黄金区 (绝不被遮挡)
             </div>
           </div>
 
@@ -305,7 +297,35 @@
               pointerEvents: 'none'
             }}
           >
-            {/* SVG 导线层 */}
+            {/* 航道背景带与标题 */}
+            {Object.keys(LANE_METADATA).map(lId => {
+              const meta = LANE_METADATA[lId];
+              const pos = nodePositions[lId];
+              if (!pos) return null;
+
+              return (
+                <div
+                  key={lId}
+                  style={{
+                    position: "absolute",
+                    left: `${pos.x}px`,
+                    top: `${pos.y}px`,
+                    pointerEvents: "none"
+                  }}
+                  className="flex items-center gap-2.5 z-0"
+                >
+                  <span className="w-3 h-3 rounded-full shadow-[0_0_8px_currentColor]" style={{ backgroundColor: meta.color, color: meta.color }} />
+                  <h3 className="font-bold text-sm tracking-wide text-slate-200 uppercase font-mono">
+                    {meta.name}
+                  </h3>
+                  <span className="text-[10px] px-2 py-0.5 rounded font-mono bg-slate-800 text-slate-400 border border-slate-700">
+                    {meta.tag}
+                  </span>
+                </div>
+              );
+            })}
+
+            {/* SVG 顺畅导线层 (航道内部清晰直连，彻底杜绝交错乱线) */}
             <svg
               className="absolute pointer-events-none overflow-visible"
               style={{ width: '1px', height: '1px', left: 0, top: 0 }}
@@ -328,33 +348,23 @@
               </defs>
 
               {edges.map(e => {
-                // 如果端点节点被隐藏折叠，尝试连接到父模块胶囊
-                let sourcePos = nodePositions[e.source];
-                let targetPos = nodePositions[e.target];
+                const sPos = nodePositions[e.source];
+                const tPos = nodePositions[e.target];
+                if (!sPos || !tPos) return null;
 
-                const sNode = nodes.find(n => n.id === e.source);
-                const tNode = nodes.find(n => n.id === e.target);
-
-                if (!sourcePos && sNode?.raw?.parentId) {
-                  sourcePos = nodePositions[sNode.raw.parentId];
-                }
-                if (!targetPos && tNode?.raw?.parentId) {
-                  targetPos = nodePositions[tNode.raw.parentId];
-                }
-
-                if (!sourcePos || !targetPos) return null;
-
-                const startX = sourcePos.x + (sourcePos.width || 320);
-                const startY = sourcePos.y + (sourcePos.height || 135) / 2;
-                const endX = targetPos.x;
-                const endY = targetPos.y + (targetPos.height || 135) / 2;
-                const deltaX = Math.max(50, Math.abs(endX - startX) / 2);
+                const startX = sPos.x + (sPos.width || 320);
+                const startY = sPos.y + (sPos.height || 135) / 2;
+                const endX = tPos.x;
+                const endY = tPos.y + (tPos.height || 135) / 2;
+                const deltaX = Math.max(40, (endX - startX) / 2);
 
                 const d = `M ${startX} ${startY} C ${startX + deltaX} ${startY}, ${endX - deltaX} ${endY}, ${endX} ${endY}`;
                 const isEnergized = e.circuitState === "energized";
                 const isBlocked = e.circuitState === "blocked";
 
-                // 透镜半透明判定
+                const sNode = nodes.find(n => n.id === e.source);
+                const tNode = nodes.find(n => n.id === e.target);
+
                 let edgeOpacity = 1.0;
                 if (assigneeFilter !== "all") {
                   const sMatch = sNode?.raw?.assignee?.includes(assigneeFilter);
@@ -369,7 +379,6 @@
                       fill="none"
                       stroke={isBlocked ? "#7f1d1d" : isEnergized ? "#064e3b" : "#334155"}
                       strokeWidth={isEnergized ? "4" : "2"}
-                      strokeDasharray={e.isBypass ? "5,5" : "none"}
                     />
                     {e.flowAnimation && (
                       <path
@@ -396,74 +405,18 @@
               })}
             </svg>
 
-            {/* 模块根节点胶囊 (Module Roots) */}
-            {Object.keys(MODULE_METADATA).map(mId => {
-              const pos = nodePositions[mId];
-              if (!pos) return null;
-              const meta = MODULE_METADATA[mId];
-              const stat = moduleStats[mId] || { total: 0, pass: 0, waiting: 0, deving: 0, blocked: 0, hours: 0 };
-              const isCollapsed = collapsedModules[mId];
-              const passRate = stat.total > 0 ? Math.round((stat.pass / stat.total) * 100) : 0;
-
-              return (
-                <div
-                  key={mId}
-                  onMouseDown={(e) => handleNodeMouseDown(e, mId)}
-                  style={{
-                    position: "absolute",
-                    left: `${pos.x}px`,
-                    top: `${pos.y}px`,
-                    width: `${pos.width}px`,
-                    height: `${pos.height}px`,
-                    pointerEvents: 'auto'
-                  }}
-                  className={`rounded-xl border-2 p-3 transition-all duration-200 backdrop-blur-xl shadow-2xl flex flex-col justify-between cursor-move bg-slate-900/90 ${
-                    isCollapsed ? "border-slate-700 hover:border-slate-500" : "border-indigo-500/50 bg-indigo-950/20"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 overflow-hidden">
-                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: meta.color }} />
-                      <span className="font-bold text-xs truncate text-slate-100">{meta.name}</span>
-                    </div>
-                    {/* 折叠/展开切换按钮 */}
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onToggleModule(mId);
-                      }}
-                      className="w-6 h-6 rounded-md bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-xs font-mono font-bold text-slate-300 hover:text-white shrink-0"
-                      title={isCollapsed ? "展开该模块细分用例" : "折叠收纳该模块"}
-                    >
-                      {isCollapsed ? "+" : "−"}
-                    </button>
-                  </div>
-
-                  {/* 模块进度与统计 */}
-                  <div className="flex items-center justify-between text-[11px] font-mono pt-1 text-slate-400">
-                    <div className="flex items-center gap-2">
-                      <span className="text-emerald-400 font-bold">{stat.pass}/{stat.total} 通过</span>
-                      {stat.waiting > 0 && <span className="text-sky-400">{stat.waiting} 待审</span>}
-                      {stat.deving > 0 && <span className="text-amber-400">{stat.deving} 施工</span>}
-                    </div>
-                    <span className="text-slate-500">{passRate}% · {stat.hours}h</span>
-                  </div>
-                </div>
-              );
-            })}
-
-            {/* 细分 UML 用例卡片 (Use Case Nodes) */}
-            {visibleNodes.map(node => {
+            {/* 节点元器件层 */}
+            {nodes.map(node => {
               const pos = nodePositions[node.id];
               if (!pos) return null;
 
               const isSelected = selectedNodeId === node.id;
               const bulb = node.bulbState;
+              const isProxySlot = node.raw?.tags?.includes("proxy");
 
-              // 负责人透镜判定 (Focus & Context)
               let nodeOpacity = 1.0;
               let isFocus = true;
-              if (assigneeFilter !== "all") {
+              if (assigneeFilter !== "all" && !isProxySlot) {
                 const match = node.raw?.assignee?.includes(assigneeFilter);
                 if (!match) {
                   nodeOpacity = 0.25;
@@ -471,12 +424,20 @@
                 }
               }
 
+              if (riskOnlyFilter && node.status === "review_pass" && !isProxySlot) {
+                nodeOpacity = 0.15;
+              }
+
               let bulbBg = "bg-slate-700 text-slate-400";
               let cardBorder = "border-slate-800 bg-slate-900/90";
               let bulbGlowClass = "";
               let statusLabel = "待开工";
 
-              if (bulb === "green_on") {
+              if (isProxySlot) {
+                bulbBg = "bg-sky-400 shadow-[0_0_12px_#38bdf8]";
+                cardBorder = "border-sky-500/40 bg-sky-950/20";
+                statusLabel = "基座就绪 (引自公共中心)";
+              } else if (bulb === "green_on") {
                 bulbBg = "bg-emerald-500 text-white shadow-[0_0_15px_#10b981]";
                 cardBorder = "border-emerald-500/60 bg-emerald-950/30";
                 statusLabel = "已导通·通过";
@@ -503,6 +464,7 @@
                   onClick={(e) => {
                     e.stopPropagation();
                     onNodeSelect(node.raw);
+                    focusOnNode(node.id); // 自动平移居中！
                   }}
                   style={{
                     position: "absolute",
@@ -513,8 +475,8 @@
                     opacity: nodeOpacity,
                     pointerEvents: 'auto'
                   }}
-                  className={`group cursor-move rounded-xl border-2 p-3 transition-all duration-200 backdrop-blur-md shadow-2xl flex flex-col justify-between ${cardBorder} ${
-                    isSelected ? "ring-2 ring-emerald-400 scale-[1.02] z-10" : isFocus ? "hover:border-slate-500 hover:scale-[1.01]" : ""
+                  className={`group cursor-move rounded-xl border-2 p-3.5 transition-all duration-200 backdrop-blur-md shadow-2xl flex flex-col justify-between ${cardBorder} ${
+                    isSelected ? "ring-2 ring-emerald-400 scale-[1.03] z-10" : isFocus ? "hover:border-slate-500 hover:scale-[1.01]" : ""
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
@@ -530,21 +492,21 @@
                   </div>
 
                   <div className="text-[11px] font-mono text-slate-400 flex items-center justify-between">
-                    <span>{statusLabel}</span>
+                    <span className={isProxySlot ? "text-sky-300 font-bold" : ""}>{statusLabel}</span>
                     <span className="text-slate-500">{node.dataOverlay.hours}</span>
                   </div>
 
                   <div className="flex items-center justify-between text-[11px] pt-1.5 border-t border-slate-800/80">
-                    <div className="flex items-center gap-1 text-slate-400">
+                    <div className="flex items-center gap-1.5 text-slate-400">
                       <span className="w-4 h-4 rounded-full bg-slate-800 flex items-center justify-center text-[9px] text-slate-300 font-bold">
                         {node.dataOverlay.assignee ? node.dataOverlay.assignee[0] : "?"}
                       </span>
-                      <span className="truncate max-w-[110px] text-[10px]">{node.dataOverlay.assignee || "未分配"}</span>
+                      <span className="truncate max-w-[120px] text-[10px]">{node.dataOverlay.assignee || "未分配"}</span>
                     </div>
 
                     <div className="flex items-center gap-1">
                       {node.dataOverlay.hasExternalBinding && (
-                        <span className="px-1 py-0.2 rounded text-[9px] bg-indigo-950/90 text-indigo-300 border border-indigo-700/60 font-mono">
+                        <span className="px-1.5 py-0.5 rounded text-[9px] bg-indigo-950/90 text-indigo-300 border border-indigo-700/60 font-mono">
                           ⚡ 契约
                         </span>
                       )}
@@ -562,7 +524,7 @@
     }
 
     // ==========================================
-    // 平台层主应用 App
+    // 平台层主应用 App (带有高对比度、防遮挡清晰抽屉)
     // ==========================================
     function App() {
       const [projectList, setProjectList] = useState([]);
@@ -571,15 +533,12 @@
       const [canvasData, setCanvasData] = useState(null);
       const [activeViewId, setActiveViewId] = useState("view-all");
       const [selectedNode, setSelectedNode] = useState(null);
+      const [focusNodeId, setFocusNodeId] = useState(null);
       const [loading, setLoading] = useState(true);
       const [isSimulating, setIsSimulating] = useState(false);
 
-      // 新增过滤器状态
       const [assigneeFilter, setAssigneeFilter] = useState("all");
       const [riskOnlyFilter, setRiskOnlyFilter] = useState(false);
-
-      // 模块折叠状态字典 (默认全部展开，支持一键全部收起)
-      const [collapsedModules, setCollapsedModules] = useState({});
 
       useEffect(() => {
         fetch("/api/projects")
@@ -633,26 +592,6 @@
         fetchProjectData(currentProjectId, vId);
       };
 
-      // 单个模块切换折叠
-      const handleToggleModule = (modId) => {
-        setCollapsedModules(prev => ({
-          ...prev,
-          [modId]: !prev[modId]
-        }));
-      };
-
-      // 一键全部展开
-      const handleExpandAll = () => {
-        setCollapsedModules({});
-      };
-
-      // 一键全部折叠 (仅看8大模块胶囊)
-      const handleCollapseAll = () => {
-        const allCollapsed = {};
-        Object.keys(MODULE_METADATA).forEach(mId => { allCollapsed[mId] = true; });
-        setCollapsedModules(allCollapsed);
-      };
-
       const handleSimulateAgent = async () => {
         setIsSimulating(true);
         try {
@@ -676,10 +615,17 @@
         await fetchProjectData(currentProjectId, activeViewId);
       };
 
+      // 跳转查看通用基座中心
+      const handleJumpToInfra = () => {
+        setFocusNodeId("INFRA-AUTH");
+        const infraNode = canvasData?.nodes.find(n => n.id === "INFRA-AUTH");
+        if (infraNode) setSelectedNode(infraNode.raw);
+      };
+
       if (loading) {
         return (
           <div className="h-screen flex items-center justify-center bg-slate-950 text-emerald-400 font-mono text-lg">
-            ⚡ 正在初始化 FlowTree 模块电路架构...
+            ⚡ 正在规划业务航道与解耦电路...
           </div>
         );
       }
@@ -689,7 +635,7 @@
       return (
         <div className="flex flex-col h-screen bg-slate-950">
           {/* 顶栏 Header */}
-          <header className="h-16 border-b border-slate-800 px-6 flex items-center justify-between bg-slate-900/90 backdrop-blur-md shrink-0 z-20">
+          <header className="h-16 border-b border-slate-800 px-6 flex items-center justify-between bg-slate-900/95 backdrop-blur-md shrink-0 z-20">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 font-bold text-lg shadow-[0_0_12px_rgba(16,185,129,0.3)]">
                 ⚡
@@ -698,11 +644,11 @@
                 <select
                   value={currentProjectId}
                   onChange={handleProjectChange}
-                  className="bg-slate-800/90 border border-slate-700 text-white font-bold text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                  className="bg-slate-800 border border-slate-700 text-white font-bold text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
                 >
                   {projectList.map(p => (
                     <option key={p.projectId} value={p.projectId}>
-                      {p.projectName} ({p.nodeCount}用例)
+                      {p.projectName}
                     </option>
                   ))}
                 </select>
@@ -748,18 +694,18 @@
             </div>
           </header>
 
-          {/* 第二栏：动态视角 + 模块展开收起 + 负责人透镜与风险筛选 */}
+          {/* 第二栏：业务航道透镜 + 负责人筛选与风险过滤 */}
           <div className="h-12 border-b border-slate-800 px-6 flex items-center justify-between bg-slate-900/60 shrink-0 z-20">
-            {/* 左侧：视角透镜 */}
+            {/* 左侧：业务航道透镜 */}
             <div className="flex items-center gap-1.5 overflow-x-auto custom-scroll">
-              <span className="text-xs text-slate-500 mr-1 font-mono shrink-0">业务视角:</span>
+              <span className="text-xs text-slate-500 mr-1 font-mono shrink-0">航道透镜:</span>
               {projectMeta?.perspectives.map((p) => {
                 const isActive = activeViewId === p.viewId;
                 return (
                   <button
                     key={p.viewId}
                     onClick={() => handleViewChange(p.viewId)}
-                    className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all flex items-center gap-1 shrink-0 ${
+                    className={`px-3 py-1 rounded-md text-xs font-medium transition-all flex items-center gap-1 shrink-0 ${
                       isActive
                         ? "bg-slate-800 text-emerald-400 border border-emerald-500/40 shadow-sm"
                         : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
@@ -771,33 +717,14 @@
               })}
             </div>
 
-            {/* 右侧交互控件：模块收放 + 负责人透镜 + 风险过滤 */}
-            <div className="flex items-center gap-3 shrink-0">
-              {/* 模块折叠展开控制 */}
-              <div className="flex items-center bg-slate-800/80 rounded-lg p-0.5 border border-slate-700 text-xs">
-                <button
-                  onClick={handleExpandAll}
-                  className="px-2 py-1 rounded hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
-                  title="展开所有模块与细分用例"
-                >
-                  ＋ 全部展开
-                </button>
-                <button
-                  onClick={handleCollapseAll}
-                  className="px-2 py-1 rounded hover:bg-slate-700 text-slate-300 hover:text-white transition-colors border-l border-slate-700"
-                  title="收起所有用例，仅看8大模块胶囊"
-                >
-                  − 全部折叠
-                </button>
-              </div>
-
-              {/* 负责人透镜选择 */}
-              <div className="flex items-center gap-1 text-xs">
-                <span className="text-slate-500 font-mono">负责人:</span>
+            {/* 右侧：负责人与风险过滤 */}
+            <div className="flex items-center gap-4 shrink-0">
+              <div className="flex items-center gap-1.5 text-xs">
+                <span className="text-slate-500 font-mono">负责人聚焦:</span>
                 <select
                   value={assigneeFilter}
                   onChange={(e) => setAssigneeFilter(e.target.value)}
-                  className="bg-slate-800 border border-slate-700 text-slate-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
+                  className="bg-slate-800 border border-slate-700 text-slate-200 rounded px-2.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
                 >
                   <option value="all">全部人员 (透镜关闭)</option>
                   <option value="Alice">Alice (前端 Flutter)</option>
@@ -806,7 +733,6 @@
                 </select>
               </div>
 
-              {/* 只看卡点复选框 */}
               <label className="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer select-none hover:text-white">
                 <input
                   type="checkbox"
@@ -822,39 +748,66 @@
           {/* 主工作区 */}
           <div className="flex-1 relative overflow-hidden flex z-10">
             <div className="flex-1 h-full">
-              <InteractiveCircuitCanvas
+              <StreamlinedCircuitCanvas
                 nodes={canvasData?.nodes || []}
                 edges={canvasData?.edges || []}
                 selectedNodeId={selectedNode?.nodeId}
                 onNodeSelect={(raw) => setSelectedNode(raw)}
-                collapsedModules={collapsedModules}
-                onToggleModule={handleToggleModule}
                 assigneeFilter={assigneeFilter}
                 riskOnlyFilter={riskOnlyFilter}
+                focusNodeId={focusNodeId}
               />
             </div>
 
-            {/* 右侧节点详情抽屉 */}
+            {/* 右侧重构抽屉 (纯黑背景、大字号、高对比度卡片化，彻底告别模糊与遮挡) */}
             {selectedNode && (
-              <div className="w-[440px] border-l border-slate-800 bg-slate-900/95 backdrop-blur-xl h-full flex flex-col shadow-2xl z-30">
-                <div className="p-4 border-b border-slate-800 flex items-start justify-between">
+              <div className="w-[460px] border-l border-slate-700/80 bg-slate-900 h-full flex flex-col shadow-2xl z-30 animate-in slide-in-from-right duration-150">
+                {/* 抽屉头部 */}
+                <div className="p-5 border-b border-slate-800 bg-slate-950/60 flex items-start justify-between">
                   <div>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-emerald-400 uppercase font-bold">
-                      {selectedNode.nodeId} · {selectedNode.nodeType}
-                    </span>
-                    <h2 className="font-bold text-base text-white mt-1.5 leading-snug">{selectedNode.name}</h2>
-                    <p className="text-xs text-slate-400 mt-1">{selectedNode.description || "无详细描述"}</p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-800 text-emerald-400 uppercase font-bold border border-slate-700">
+                        {selectedNode.nodeId}
+                      </span>
+                      <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-300 uppercase">
+                        {selectedNode.nodeType}
+                      </span>
+                    </div>
+                    <h2 className="font-bold text-base text-white mt-2 leading-snug">{selectedNode.name}</h2>
+                    <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">{selectedNode.description || "无详细描述"}</p>
                   </div>
                   <button
                     onClick={() => setSelectedNode(null)}
-                    className="text-slate-400 hover:text-white text-lg font-mono p-1"
+                    className="text-slate-400 hover:text-white text-lg font-mono p-1 rounded hover:bg-slate-800 transition-colors"
                   >
                     ✕
                   </button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs custom-scroll">
-                  <div className="bg-slate-950/60 p-3 rounded-lg border border-slate-800 space-y-2">
+                {/* 抽屉滚动内容 */}
+                <div className="flex-1 overflow-y-auto p-5 space-y-4 text-xs custom-scroll bg-slate-900">
+                  {/* 若为输入基座端口，展示跳转链接 */}
+                  {selectedNode.tags?.includes("proxy") && (
+                    <div className="bg-sky-950/30 p-4 rounded-xl border border-sky-800/60 space-y-2">
+                      <div className="font-bold text-sky-300 text-xs flex items-center justify-between">
+                        <span>🔌 通用底座依赖端口 (已解耦)</span>
+                        <span className="text-[10px] text-emerald-400 font-mono">● 已导通</span>
+                      </div>
+                      <p className="text-[11px] text-slate-300 leading-relaxed">
+                        本业务航道依赖的通用用户认证已通过。通用模块独立于业务流程测试，不随业务流重复运行。
+                      </p>
+                      <button
+                        onClick={handleJumpToInfra}
+                        className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-medium text-xs flex items-center gap-1.5 shadow transition-all"
+                      >
+                        <span>🔍</span>
+                        <span>跳转查看公共基座中心测试详情</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {/* 状态与责任人 */}
+                  <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2.5">
                     <div className="flex justify-between items-center">
                       <span className="text-slate-400">当前流转状态:</span>
                       <span className="font-mono font-bold text-emerald-400 px-2 py-0.5 rounded bg-emerald-950 border border-emerald-800">
@@ -862,30 +815,22 @@
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-400">负责人角色:</span>
+                      <span className="text-slate-400">责任人角色:</span>
                       <span className="text-slate-200 font-medium">{selectedNode.assignee || "未指定"} ({selectedNode.assignRole || "-"})</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-400">工时消耗:</span>
+                      <span className="text-slate-400">预估/消耗工时:</span>
                       <span className="text-slate-200 font-mono">{selectedNode.actualHours}h / {selectedNode.estimateHours}h</span>
                     </div>
-                    {selectedNode.tags && (
-                      <div className="pt-2 border-t border-slate-800/80 flex flex-wrap gap-1">
-                        {selectedNode.tags.map(t => (
-                          <span key={t} className="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-slate-300 font-mono">
-                            #{t}
-                          </span>
-                        ))}
-                      </div>
-                    )}
                   </div>
 
+                  {/* 外部测试系统映射 */}
                   {selectedNode.externalBinding && (
-                    <div className="bg-indigo-950/30 p-3.5 rounded-lg border border-indigo-900/50 space-y-1.5">
+                    <div className="bg-indigo-950/30 p-4 rounded-xl border border-indigo-900/60 space-y-2">
                       <div className="font-semibold text-indigo-300 flex items-center gap-1.5 text-xs">
                         <span>⚡ 自动化测试套件与契约绑定</span>
                       </div>
-                      <div className="text-[11px] text-slate-300 font-mono space-y-1 bg-slate-950/60 p-2.5 rounded border border-indigo-950">
+                      <div className="text-[11px] text-slate-300 font-mono space-y-1.5 bg-slate-950/80 p-3 rounded border border-indigo-950">
                         <div>执行系统: <span className="text-indigo-400 font-bold">{selectedNode.externalBinding.system}</span></div>
                         <div>目标套件: <span className="text-amber-300 font-bold">{selectedNode.externalBinding.targetId}</span></div>
                         {selectedNode.externalBinding.meta?.endpoint && (
@@ -895,57 +840,64 @@
                     </div>
                   )}
 
+                  {/* 客观逻辑验收标准 (DoD) */}
                   <div>
-                    <h3 className="font-semibold text-slate-300 mb-2">📋 客观逻辑验收标准 (DoD)</h3>
-                    <ul className="space-y-1.5">
+                    <h3 className="font-semibold text-slate-200 mb-2 flex items-center gap-1.5 text-sm">
+                      <span>📋 客观逻辑验收标准 (DoD)</span>
+                    </h3>
+                    <ul className="space-y-2">
                       {selectedNode.acceptanceCriteria?.map((ac, idx) => (
-                        <li key={idx} className="bg-slate-950 p-2.5 rounded border border-slate-800 text-slate-300 flex items-start gap-2 leading-relaxed">
-                          <span className="text-emerald-500 font-bold mt-0.5">✓</span>
+                        <li key={idx} className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-slate-300 flex items-start gap-2.5 leading-relaxed text-xs">
+                          <span className="text-emerald-400 font-bold mt-0.5">✓</span>
                           <span>{ac}</span>
                         </li>
                       ))}
                     </ul>
                   </div>
 
+                  {/* 自动化与审查报告 */}
                   <div>
-                    <h3 className="font-semibold text-slate-300 mb-2">💬 自动化与人工审查报告</h3>
-                    <div className="space-y-1.5">
+                    <h3 className="font-semibold text-slate-200 mb-2 flex items-center gap-1.5 text-sm">
+                      <span>💬 自动化与人工审查报告</span>
+                    </h3>
+                    <div className="space-y-2">
                       {selectedNode.review?.comments?.length > 0 ? (
                         selectedNode.review.comments.map((c, idx) => (
-                          <div key={idx} className="bg-slate-950/80 p-2.5 rounded border border-slate-800 text-[11px] text-slate-300 font-mono leading-relaxed">
+                          <div key={idx} className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-[11px] text-slate-300 font-mono leading-relaxed">
                             {c}
                           </div>
                         ))
                       ) : (
-                        <div className="text-slate-500 italic">暂无审查反馈</div>
+                        <div className="text-slate-500 italic p-3 bg-slate-950 rounded-xl">暂无审查反馈</div>
                       )}
                     </div>
                   </div>
                 </div>
 
-                <div className="p-4 border-t border-slate-800 bg-slate-950/90">
+                {/* 抽屉底部操作栏 */}
+                <div className="p-5 border-t border-slate-800 bg-slate-950">
                   {selectedNode.status === "logic_verified" ? (
-                    <div className="space-y-2">
+                    <div className="space-y-2.5">
                       <div className="text-[11px] text-sky-400 font-mono flex items-center gap-1">
                         <span>💡 自动化切片已跑通，等待 PM/架构师 终审签字</span>
                       </div>
                       <button
                         onClick={() => handleHumanSignOff(selectedNode.nodeId)}
-                        className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-medium rounded-lg shadow-[0_0_15px_rgba(16,185,129,0.4)] text-xs transition-all active:scale-95"
+                        className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-medium rounded-xl shadow-[0_0_15px_rgba(16,185,129,0.4)] text-xs transition-all active:scale-95"
                       >
                         ✓ 人工终审通过 (Sign-off) 并放电
                       </button>
                     </div>
                   ) : selectedNode.status === "review_pass" ? (
-                    <div className="text-center py-1 text-xs text-emerald-400 font-mono">
+                    <div className="text-center py-2 text-xs text-emerald-400 font-mono bg-emerald-950/30 rounded-lg border border-emerald-900/50">
                       ● 节点已完全验收导通，向全链路正常输送能量
                     </div>
                   ) : selectedNode.status === "deving" ? (
-                    <div className="text-center py-1 text-xs text-amber-400 font-mono">
+                    <div className="text-center py-2 text-xs text-amber-400 font-mono bg-amber-950/30 rounded-lg border border-amber-900/50">
                       ◐ 依赖能量已注入，全栈研发施工中...
                     </div>
                   ) : (
-                    <div className="text-center py-1 text-xs text-slate-500 font-mono">
+                    <div className="text-center py-2 text-xs text-slate-500 font-mono bg-slate-900 rounded-lg border border-slate-800">
                       ○ 依赖链路施工中，等待激活
                     </div>
                   )}
