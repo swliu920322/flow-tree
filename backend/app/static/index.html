@@ -39,10 +39,31 @@
   <script type="text/babel">
     const { useState, useEffect, useRef, useMemo } = React;
 
+    // 8 大模块基础元数据定义
+    const MODULE_METADATA = {
+      "MOD-01": { id: "MOD-01", name: "模块一：鉴权与账号记忆", color: "#38bdf8" },
+      "MOD-02": { id: "MOD-02", name: "模块二：伙伴关系契约网络", color: "#a855f7" },
+      "MOD-03": { id: "MOD-03", name: "模块三：双代币隔离分账引擎", color: "#10b981" },
+      "MOD-04": { id: "MOD-04", name: "模块四：自律任务与手风琴树卡", color: "#06b6d4" },
+      "MOD-05": { id: "MOD-05", name: "模块五：他律指派与审批中心", color: "#f59e0b" },
+      "MOD-06": { id: "MOD-06", name: "模块六：心愿兑现与伙伴商城", color: "#ec4899" },
+      "MOD-07": { id: "MOD-07", name: "模块七：克制储蓄挑战罐", color: "#84cc16" },
+      "MOD-08": { id: "MOD-08", name: "模块八：全域状态同构与审计流", color: "#6366f1" }
+    };
+
     // ==========================================
-    // 工业级交互画布：全局 Window 事件监听，支持自由平移与节点拖拽
+    // 工业级交互画布：支持模块折叠展开、负责人透镜高亮与自由拖拽平移
     // ==========================================
-    function InteractiveCircuitCanvas({ nodes, edges, onNodeSelect, selectedNodeId }) {
+    function InteractiveCircuitCanvas({
+      nodes,
+      edges,
+      onNodeSelect,
+      selectedNodeId,
+      collapsedModules,
+      onToggleModule,
+      assigneeFilter,
+      riskOnlyFilter
+    }) {
       const containerRef = useRef(null);
 
       const [transform, setTransform] = useState({ x: 80, y: 60, scale: 0.85 });
@@ -59,75 +80,91 @@
 
       const draggingNodeRef = useRef(null);
 
-      // 1. 自动计算初始拓扑布局 (左右展开树)
+      // 计算模块聚合状态
+      const moduleStats = useMemo(() => {
+        const stats = {};
+        Object.keys(MODULE_METADATA).forEach(mId => {
+          stats[mId] = { total: 0, pass: 0, waiting: 0, deving: 0, blocked: 0, hours: 0 };
+        });
+
+        nodes.forEach(n => {
+          const mId = n.raw?.parentId || "MOD-01";
+          if (!stats[mId]) stats[mId] = { total: 0, pass: 0, waiting: 0, deving: 0, blocked: 0, hours: 0 };
+          stats[mId].total += 1;
+          stats[mId].hours += n.raw.estimateHours || 0;
+          if (n.status === "review_pass") stats[mId].pass += 1;
+          else if (n.status === "logic_verified") stats[mId].waiting += 1;
+          else if (n.status === "deving") stats[mId].deving += 1;
+          else if (n.status === "review_reject") stats[mId].blocked += 1;
+        });
+        return stats;
+      }, [nodes]);
+
+      // 过滤与可见节点计算 (折叠逻辑)
+      const visibleNodes = useMemo(() => {
+        return nodes.filter(n => {
+          const mId = n.raw?.parentId;
+          // 若父模块被折叠，则隐藏该子节点
+          if (mId && collapsedModules[mId]) return false;
+          // 卡点过滤器
+          if (riskOnlyFilter) {
+            if (n.status === "review_pass") return false;
+          }
+          return true;
+        });
+      }, [nodes, collapsedModules, riskOnlyFilter]);
+
+      // 自动计算布局 (模块化左右分层)
       useEffect(() => {
         if (!nodes || nodes.length === 0) {
           setNodePositions({});
           return;
         }
 
-        const inDegree = {};
-        const nodeMap = {};
-        nodes.forEach(n => {
-          inDegree[n.id] = 0;
-          nodeMap[n.id] = n;
+        // 模块顺序
+        const moduleOrder = ["MOD-01", "MOD-02", "MOD-03", "MOD-04", "MOD-05", "MOD-06", "MOD-07", "MOD-08"];
+        const moduleNodesMap = {};
+        moduleOrder.forEach(mId => { moduleNodesMap[mId] = []; });
+
+        visibleNodes.forEach(n => {
+          const mId = n.raw?.parentId || "MOD-01";
+          if (!moduleNodesMap[mId]) moduleNodesMap[mId] = [];
+          moduleNodesMap[mId].push(n);
         });
-
-        const directEdges = edges.filter(e => nodeMap[e.source] && nodeMap[e.target]);
-        directEdges.forEach(e => {
-          inDegree[e.target] = (inDegree[e.target] || 0) + 1;
-        });
-
-        const levels = {};
-        const getLevel = (nid, visited = new Set()) => {
-          if (levels[nid] !== undefined) return levels[nid];
-          if (visited.has(nid)) return 0;
-          visited.add(nid);
-          const incoming = directEdges.filter(e => e.target === nid);
-          if (incoming.length === 0) {
-            levels[nid] = 0;
-            return 0;
-          }
-          let maxL = 0;
-          incoming.forEach(e => {
-            maxL = Math.max(maxL, getLevel(e.source, new Set(visited)) + 1);
-          });
-          levels[nid] = maxL;
-          return maxL;
-        };
-
-        nodes.forEach(n => getLevel(n.id));
-
-        const levelGroups = {};
-        nodes.forEach(n => {
-          const l = levels[n.id] || 0;
-          if (!levelGroups[l]) levelGroups[l] = [];
-          levelGroups[l].push(n);
-        });
-
-        const cardWidth = 320;
-        const cardHeight = 135;
-        const gapX = 150;
-        const gapY = 55;
 
         const newPos = {};
-        Object.keys(levelGroups).forEach(lStr => {
-          const l = Number(lStr);
-          const group = levelGroups[l];
-          group.forEach((node, idx) => {
-            newPos[node.id] = {
-              x: 80 + l * (cardWidth + gapX),
-              y: 60 + idx * (cardHeight + gapY),
-              width: cardWidth,
-              height: cardHeight
-            };
-          });
+        const colWidth = 340;
+        const gapX = 160;
+        let currentX = 80;
+
+        moduleOrder.forEach((mId, mIdx) => {
+          const isCollapsed = collapsedModules[mId];
+          const subNodes = moduleNodesMap[mId] || [];
+
+          // 模块胶囊坐标
+          const modX = currentX;
+          const modY = 40;
+          newPos[mId] = { x: modX, y: modY, width: 340, height: isCollapsed ? 100 : 70 };
+
+          if (!isCollapsed) {
+            // 展开子用例
+            subNodes.forEach((node, nIdx) => {
+              newPos[node.id] = {
+                x: modX,
+                y: 140 + nIdx * 150,
+                width: 320,
+                height: 135
+              };
+            });
+          }
+
+          currentX += colWidth + gapX;
         });
 
         setNodePositions(newPos);
-      }, [nodes, edges]);
+      }, [nodes, visibleNodes, collapsedModules]);
 
-      // 2. 全局事件监听 (防遮罩与防失焦卡顿)
+      // 全局事件监听 (防卡顿)
       useEffect(() => {
         const handleGlobalMouseMove = (e) => {
           if (isPanningRef.current) {
@@ -174,12 +211,10 @@
         };
       }, []);
 
-      // 3. 滚轮缩放
       const handleWheel = (e) => {
         e.preventDefault();
         const container = containerRef.current;
         if (!container) return;
-
         const rect = container.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
@@ -256,7 +291,7 @@
               {Math.round(transform.scale * 100)}% 居中
             </button>
             <div className="text-[11px] text-slate-500 px-2 font-mono border-l border-slate-800">
-              💡 鼠标拖动画布 / 滚轮自由缩放 / 拖拽节点卡片
+              💡 鼠标拖动画布 / 滚轮自由缩放 / 拖拽节点卡片 / 点击模块右上角收放
             </div>
           </div>
 
@@ -293,22 +328,42 @@
               </defs>
 
               {edges.map(e => {
-                const s = nodePositions[e.source];
-                const t = nodePositions[e.target];
-                if (!s || !t) return null;
+                // 如果端点节点被隐藏折叠，尝试连接到父模块胶囊
+                let sourcePos = nodePositions[e.source];
+                let targetPos = nodePositions[e.target];
 
-                const startX = s.x + (s.width || 320);
-                const startY = s.y + (s.height || 135) / 2;
-                const endX = t.x;
-                const endY = t.y + (t.height || 135) / 2;
+                const sNode = nodes.find(n => n.id === e.source);
+                const tNode = nodes.find(n => n.id === e.target);
+
+                if (!sourcePos && sNode?.raw?.parentId) {
+                  sourcePos = nodePositions[sNode.raw.parentId];
+                }
+                if (!targetPos && tNode?.raw?.parentId) {
+                  targetPos = nodePositions[tNode.raw.parentId];
+                }
+
+                if (!sourcePos || !targetPos) return null;
+
+                const startX = sourcePos.x + (sourcePos.width || 320);
+                const startY = sourcePos.y + (sourcePos.height || 135) / 2;
+                const endX = targetPos.x;
+                const endY = targetPos.y + (targetPos.height || 135) / 2;
                 const deltaX = Math.max(50, Math.abs(endX - startX) / 2);
 
                 const d = `M ${startX} ${startY} C ${startX + deltaX} ${startY}, ${endX - deltaX} ${endY}, ${endX} ${endY}`;
                 const isEnergized = e.circuitState === "energized";
                 const isBlocked = e.circuitState === "blocked";
 
+                // 透镜半透明判定
+                let edgeOpacity = 1.0;
+                if (assigneeFilter !== "all") {
+                  const sMatch = sNode?.raw?.assignee?.includes(assigneeFilter);
+                  const tMatch = tNode?.raw?.assignee?.includes(assigneeFilter);
+                  if (!sMatch && !tMatch) edgeOpacity = 0.15;
+                }
+
                 return (
-                  <g key={e.id}>
+                  <g key={e.id} style={{ opacity: edgeOpacity }} className="transition-opacity duration-200">
                     <path
                       d={d}
                       fill="none"
@@ -341,11 +396,80 @@
               })}
             </svg>
 
-            {/* 节点元器件层 */}
-            {nodes.map(node => {
-              const pos = nodePositions[node.id] || { x: 0, y: 0 };
+            {/* 模块根节点胶囊 (Module Roots) */}
+            {Object.keys(MODULE_METADATA).map(mId => {
+              const pos = nodePositions[mId];
+              if (!pos) return null;
+              const meta = MODULE_METADATA[mId];
+              const stat = moduleStats[mId] || { total: 0, pass: 0, waiting: 0, deving: 0, blocked: 0, hours: 0 };
+              const isCollapsed = collapsedModules[mId];
+              const passRate = stat.total > 0 ? Math.round((stat.pass / stat.total) * 100) : 0;
+
+              return (
+                <div
+                  key={mId}
+                  onMouseDown={(e) => handleNodeMouseDown(e, mId)}
+                  style={{
+                    position: "absolute",
+                    left: `${pos.x}px`,
+                    top: `${pos.y}px`,
+                    width: `${pos.width}px`,
+                    height: `${pos.height}px`,
+                    pointerEvents: 'auto'
+                  }}
+                  className={`rounded-xl border-2 p-3 transition-all duration-200 backdrop-blur-xl shadow-2xl flex flex-col justify-between cursor-move bg-slate-900/90 ${
+                    isCollapsed ? "border-slate-700 hover:border-slate-500" : "border-indigo-500/50 bg-indigo-950/20"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 overflow-hidden">
+                      <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: meta.color }} />
+                      <span className="font-bold text-xs truncate text-slate-100">{meta.name}</span>
+                    </div>
+                    {/* 折叠/展开切换按钮 */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onToggleModule(mId);
+                      }}
+                      className="w-6 h-6 rounded-md bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-xs font-mono font-bold text-slate-300 hover:text-white shrink-0"
+                      title={isCollapsed ? "展开该模块细分用例" : "折叠收纳该模块"}
+                    >
+                      {isCollapsed ? "+" : "−"}
+                    </button>
+                  </div>
+
+                  {/* 模块进度与统计 */}
+                  <div className="flex items-center justify-between text-[11px] font-mono pt-1 text-slate-400">
+                    <div className="flex items-center gap-2">
+                      <span className="text-emerald-400 font-bold">{stat.pass}/{stat.total} 通过</span>
+                      {stat.waiting > 0 && <span className="text-sky-400">{stat.waiting} 待审</span>}
+                      {stat.deving > 0 && <span className="text-amber-400">{stat.deving} 施工</span>}
+                    </div>
+                    <span className="text-slate-500">{passRate}% · {stat.hours}h</span>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* 细分 UML 用例卡片 (Use Case Nodes) */}
+            {visibleNodes.map(node => {
+              const pos = nodePositions[node.id];
+              if (!pos) return null;
+
               const isSelected = selectedNodeId === node.id;
               const bulb = node.bulbState;
+
+              // 负责人透镜判定 (Focus & Context)
+              let nodeOpacity = 1.0;
+              let isFocus = true;
+              if (assigneeFilter !== "all") {
+                const match = node.raw?.assignee?.includes(assigneeFilter);
+                if (!match) {
+                  nodeOpacity = 0.25;
+                  isFocus = false;
+                }
+              }
 
               let bulbBg = "bg-slate-700 text-slate-400";
               let cardBorder = "border-slate-800 bg-slate-900/90";
@@ -384,18 +508,19 @@
                     position: "absolute",
                     left: `${pos.x}px`,
                     top: `${pos.y}px`,
-                    width: '320px',
-                    height: '135px',
+                    width: `${pos.width}px`,
+                    height: `${pos.height}px`,
+                    opacity: nodeOpacity,
                     pointerEvents: 'auto'
                   }}
-                  className={`group cursor-move rounded-xl border-2 p-3.5 transition-shadow duration-150 backdrop-blur-md shadow-2xl flex flex-col justify-between ${cardBorder} ${
-                    isSelected ? "ring-2 ring-emerald-400 scale-[1.02]" : "hover:border-slate-500"
+                  className={`group cursor-move rounded-xl border-2 p-3 transition-all duration-200 backdrop-blur-md shadow-2xl flex flex-col justify-between ${cardBorder} ${
+                    isSelected ? "ring-2 ring-emerald-400 scale-[1.02] z-10" : isFocus ? "hover:border-slate-500 hover:scale-[1.01]" : ""
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-center gap-2.5 overflow-hidden">
+                    <div className="flex items-center gap-2 overflow-hidden">
                       <div className={`w-3.5 h-3.5 rounded-full shrink-0 ${bulbBg} ${bulbGlowClass}`} />
-                      <span className="font-semibold text-sm truncate text-slate-100 group-hover:text-emerald-300">
+                      <span className="font-semibold text-xs truncate text-slate-100 group-hover:text-emerald-300">
                         {node.label}
                       </span>
                     </div>
@@ -404,23 +529,23 @@
                     </span>
                   </div>
 
-                  <div className="text-xs font-mono text-slate-400 flex items-center justify-between">
+                  <div className="text-[11px] font-mono text-slate-400 flex items-center justify-between">
                     <span>{statusLabel}</span>
                     <span className="text-slate-500">{node.dataOverlay.hours}</span>
                   </div>
 
-                  <div className="flex items-center justify-between text-[11px] pt-2 border-t border-slate-800/80">
-                    <div className="flex items-center gap-1.5 text-slate-400">
-                      <span className="w-5 h-5 rounded-full bg-slate-800 flex items-center justify-center text-[10px] text-slate-300 font-bold">
+                  <div className="flex items-center justify-between text-[11px] pt-1.5 border-t border-slate-800/80">
+                    <div className="flex items-center gap-1 text-slate-400">
+                      <span className="w-4 h-4 rounded-full bg-slate-800 flex items-center justify-center text-[9px] text-slate-300 font-bold">
                         {node.dataOverlay.assignee ? node.dataOverlay.assignee[0] : "?"}
                       </span>
-                      <span className="truncate max-w-[110px]">{node.dataOverlay.assignee || "未分配"}</span>
+                      <span className="truncate max-w-[110px] text-[10px]">{node.dataOverlay.assignee || "未分配"}</span>
                     </div>
 
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1">
                       {node.dataOverlay.hasExternalBinding && (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] bg-indigo-950/90 text-indigo-300 border border-indigo-700/60 font-mono">
-                          ⚡ 自动化映射
+                        <span className="px-1 py-0.2 rounded text-[9px] bg-indigo-950/90 text-indigo-300 border border-indigo-700/60 font-mono">
+                          ⚡ 契约
                         </span>
                       )}
                       {node.dataOverlay.isLogicVerified && (
@@ -437,7 +562,7 @@
     }
 
     // ==========================================
-    // 平台层主应用 App (支持多项目自由切换)
+    // 平台层主应用 App
     // ==========================================
     function App() {
       const [projectList, setProjectList] = useState([]);
@@ -449,7 +574,13 @@
       const [loading, setLoading] = useState(true);
       const [isSimulating, setIsSimulating] = useState(false);
 
-      // 1. 获取项目列表
+      // 新增过滤器状态
+      const [assigneeFilter, setAssigneeFilter] = useState("all");
+      const [riskOnlyFilter, setRiskOnlyFilter] = useState(false);
+
+      // 模块折叠状态字典 (默认全部展开，支持一键全部收起)
+      const [collapsedModules, setCollapsedModules] = useState({});
+
       useEffect(() => {
         fetch("/api/projects")
           .then(res => res.json())
@@ -457,7 +588,6 @@
           .catch(err => console.error("加载项目列表失败:", err));
       }, []);
 
-      // 2. 加载项目元数据与画布数据
       const fetchProjectData = async (projId, viewId) => {
         try {
           const [metaRes, canvasRes] = await Promise.all([
@@ -481,17 +611,14 @@
 
       useEffect(() => {
         fetchProjectData(currentProjectId, activeViewId);
-
         const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
         const ws = new WebSocket(`${protocol}//${window.location.host}/ws/circuit`);
         ws.onmessage = () => {
-          console.log("⚡ 收到广播，重新拉取");
           fetchProjectData(currentProjectId, activeViewId);
         };
         return () => ws.close();
       }, [currentProjectId, activeViewId]);
 
-      // 切换项目
       const handleProjectChange = (e) => {
         const nextId = e.target.value;
         setCurrentProjectId(nextId);
@@ -501,13 +628,31 @@
         fetchProjectData(nextId, "view-all");
       };
 
-      // 切换视角
       const handleViewChange = (vId) => {
         setActiveViewId(vId);
         fetchProjectData(currentProjectId, vId);
       };
 
-      // 模拟 Agent
+      // 单个模块切换折叠
+      const handleToggleModule = (modId) => {
+        setCollapsedModules(prev => ({
+          ...prev,
+          [modId]: !prev[modId]
+        }));
+      };
+
+      // 一键全部展开
+      const handleExpandAll = () => {
+        setCollapsedModules({});
+      };
+
+      // 一键全部折叠 (仅看8大模块胶囊)
+      const handleCollapseAll = () => {
+        const allCollapsed = {};
+        Object.keys(MODULE_METADATA).forEach(mId => { allCollapsed[mId] = true; });
+        setCollapsedModules(allCollapsed);
+      };
+
       const handleSimulateAgent = async () => {
         setIsSimulating(true);
         try {
@@ -518,7 +663,6 @@
         }
       };
 
-      // 人工终审通过 (Sign-off)
       const handleHumanSignOff = async (nodeId) => {
         await fetch(`/api/projects/${currentProjectId}/nodes/${nodeId}/status`, {
           method: "PATCH",
@@ -535,7 +679,7 @@
       if (loading) {
         return (
           <div className="h-screen flex items-center justify-center bg-slate-950 text-emerald-400 font-mono text-lg">
-            ⚡ 正在初始化 FlowTree 电路引擎...
+            ⚡ 正在初始化 FlowTree 模块电路架构...
           </div>
         );
       }
@@ -551,7 +695,6 @@
                 ⚡
               </div>
               <div className="flex items-center gap-2">
-                {/* 多项目切换下拉选择器 */}
                 <select
                   value={currentProjectId}
                   onChange={handleProjectChange}
@@ -559,7 +702,7 @@
                 >
                   {projectList.map(p => (
                     <option key={p.projectId} value={p.projectId}>
-                      {p.projectName} ({p.nodeCount}节点)
+                      {p.projectName} ({p.nodeCount}用例)
                     </option>
                   ))}
                 </select>
@@ -605,17 +748,18 @@
             </div>
           </header>
 
-          {/* 动态视角透镜切换 Bar */}
+          {/* 第二栏：动态视角 + 模块展开收起 + 负责人透镜与风险筛选 */}
           <div className="h-12 border-b border-slate-800 px-6 flex items-center justify-between bg-slate-900/60 shrink-0 z-20">
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs text-slate-500 mr-2 font-mono">岗位与业务视角:</span>
+            {/* 左侧：视角透镜 */}
+            <div className="flex items-center gap-1.5 overflow-x-auto custom-scroll">
+              <span className="text-xs text-slate-500 mr-1 font-mono shrink-0">业务视角:</span>
               {projectMeta?.perspectives.map((p) => {
                 const isActive = activeViewId === p.viewId;
                 return (
                   <button
                     key={p.viewId}
                     onClick={() => handleViewChange(p.viewId)}
-                    className={`px-3 py-1 rounded-md text-xs font-medium transition-all flex items-center gap-1.5 ${
+                    className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all flex items-center gap-1 shrink-0 ${
                       isActive
                         ? "bg-slate-800 text-emerald-400 border border-emerald-500/40 shadow-sm"
                         : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
@@ -627,8 +771,51 @@
               })}
             </div>
 
-            <div className="text-xs text-slate-500 font-mono">
-              当前透镜：<span className="text-slate-300 font-bold">{canvasData?.activeViewName}</span> ({canvasData?.nodes.length} 个可视元器件)
+            {/* 右侧交互控件：模块收放 + 负责人透镜 + 风险过滤 */}
+            <div className="flex items-center gap-3 shrink-0">
+              {/* 模块折叠展开控制 */}
+              <div className="flex items-center bg-slate-800/80 rounded-lg p-0.5 border border-slate-700 text-xs">
+                <button
+                  onClick={handleExpandAll}
+                  className="px-2 py-1 rounded hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
+                  title="展开所有模块与细分用例"
+                >
+                  ＋ 全部展开
+                </button>
+                <button
+                  onClick={handleCollapseAll}
+                  className="px-2 py-1 rounded hover:bg-slate-700 text-slate-300 hover:text-white transition-colors border-l border-slate-700"
+                  title="收起所有用例，仅看8大模块胶囊"
+                >
+                  − 全部折叠
+                </button>
+              </div>
+
+              {/* 负责人透镜选择 */}
+              <div className="flex items-center gap-1 text-xs">
+                <span className="text-slate-500 font-mono">负责人:</span>
+                <select
+                  value={assigneeFilter}
+                  onChange={(e) => setAssigneeFilter(e.target.value)}
+                  className="bg-slate-800 border border-slate-700 text-slate-200 rounded px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
+                >
+                  <option value="all">全部人员 (透镜关闭)</option>
+                  <option value="Alice">Alice (前端 Flutter)</option>
+                  <option value="Bob">Bob (后端 FastAPI)</option>
+                  <option value="Carol">Carol (QA 质量架构)</option>
+                </select>
+              </div>
+
+              {/* 只看卡点复选框 */}
+              <label className="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer select-none hover:text-white">
+                <input
+                  type="checkbox"
+                  checked={riskOnlyFilter}
+                  onChange={(e) => setRiskOnlyFilter(e.target.checked)}
+                  className="rounded bg-slate-800 border-slate-700 text-emerald-500 focus:ring-0 cursor-pointer"
+                />
+                <span className="font-mono text-amber-400">只看卡点与待审</span>
+              </label>
             </div>
           </div>
 
@@ -640,12 +827,16 @@
                 edges={canvasData?.edges || []}
                 selectedNodeId={selectedNode?.nodeId}
                 onNodeSelect={(raw) => setSelectedNode(raw)}
+                collapsedModules={collapsedModules}
+                onToggleModule={handleToggleModule}
+                assigneeFilter={assigneeFilter}
+                riskOnlyFilter={riskOnlyFilter}
               />
             </div>
 
             {/* 右侧节点详情抽屉 */}
             {selectedNode && (
-              <div className="w-[430px] border-l border-slate-800 bg-slate-900/95 backdrop-blur-xl h-full flex flex-col shadow-2xl z-30">
+              <div className="w-[440px] border-l border-slate-800 bg-slate-900/95 backdrop-blur-xl h-full flex flex-col shadow-2xl z-30">
                 <div className="p-4 border-b border-slate-800 flex items-start justify-between">
                   <div>
                     <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-emerald-400 uppercase font-bold">
