@@ -1,7 +1,7 @@
 from typing import List, Dict, Set
 from collections import defaultdict, deque
 from .schema import (
-    ProjectModel, PerspectiveModel, NodeModel, NodeStatus,
+    ProjectModel, PerspectiveModel, NodeModel, NodeStatus, BulbState,
     CanvasPayload, CanvasNode, CanvasEdge, CanvasStats, CanvasNodeOverlay
 )
 from .circuit import CircuitEngine
@@ -65,19 +65,25 @@ class PerspectiveLens:
                 if dep_id in node_map:
                     downstream_map[dep_id].append(n.nodeId)
 
-        # 4. 穿透算法：计算视角下的连线 (Edges)
+        # 4. 电源连通性预计算（严格因果律：前面不通，后面也不能通）
+        powered_map = CircuitEngine.compute_power_reachability(project.nodes)
+        all_module_summaries = CircuitEngine.compute_module_summaries(project.nodes)
+        module_summary_map = {m.moduleId: m for m in all_module_summaries}
+
+        # 5. 穿透算法：计算视角下的连线 (Edges)
         edges: List[CanvasEdge] = []
         edge_set: Set[tuple] = set()
 
         for source_id in matched_node_ids:
             source_node = node_map[source_id]
+            source_powered = powered_map.get(source_id, False)
 
             if not perspective.bypassUnmatched:
                 # 不穿透：只保留两端都在视角内的直接依赖
                 for target_id in downstream_map[source_id]:
                     if target_id in matched_node_ids:
                         target_node = node_map[target_id]
-                        c_state, flow, color = CircuitEngine.compute_edge_circuit(source_node, target_node)
+                        c_state, flow, color = CircuitEngine.compute_edge_circuit(source_node, target_node, source_powered)
                         edge_pair = (source_id, target_id)
                         if edge_pair not in edge_set:
                             edge_set.add(edge_pair)
@@ -92,7 +98,6 @@ class PerspectiveLens:
                             ))
             else:
                 # 穿透模式 (Bypass Transitive Search)
-                # BFS 查找该节点通过未匹配节点可达的最邻近匹配节点
                 visited_in_search: Set[str] = set()
                 queue = deque([(target_id, False) for target_id in downstream_map[source_id]])
 
@@ -103,12 +108,11 @@ class PerspectiveLens:
                     visited_in_search.add(curr_id)
 
                     if curr_id in matched_node_ids:
-                        # 找到了视角内的目标节点
                         edge_pair = (source_id, curr_id)
                         if edge_pair not in edge_set:
                             edge_set.add(edge_pair)
                             target_node = node_map[curr_id]
-                            c_state, flow, color = CircuitEngine.compute_edge_circuit(source_node, target_node)
+                            c_state, flow, color = CircuitEngine.compute_edge_circuit(source_node, target_node, source_powered)
                             edges.append(CanvasEdge(
                                 id=f"e_{source_id}_{curr_id}",
                                 source=source_id,
@@ -119,19 +123,44 @@ class PerspectiveLens:
                                 isBypass=bypassed
                             ))
                     else:
-                        # 当前节点不在视角内，继续向下游延伸穿透
                         for next_id in downstream_map[curr_id]:
                             if next_id not in visited_in_search:
                                 queue.append((next_id, True))
 
-        # 5. 生成渲染节点卡片 (CanvasNodes)
+        # 6. 生成渲染节点卡片 (CanvasNodes)
         canvas_nodes: List[CanvasNode] = []
         total_estimate_hours = 0.0
         passed_estimate_hours = 0.0
 
         for nid in matched_node_ids:
             node = node_map[nid]
-            bulb = CircuitEngine.get_bulb_state(node)
+            is_node_powered = powered_map.get(nid, False)
+
+            # 模块根节点随百分比变色逻辑
+            if node.nodeType.value == "module":
+                m_info = module_summary_map.get(node.nodeId) or module_summary_map.get(node.parentId or "")
+                rate = m_info.progressRate if m_info else 0.0
+                has_reject = (m_info.bottlenecksCount > 0) if m_info else False
+                bulb, color_hex = CircuitEngine.get_module_color_by_percentage(rate, has_reject)
+                module_pct = rate
+                module_color = color_hex
+            elif node.nodeType.value == "root":
+                bulb = BulbState.ILLUMINATED_GREEN
+                module_pct = 1.0
+                module_color = "#10B981"
+            else:
+                module_pct = None
+                module_color = None
+                # 常规任务节点：前面不通，后面失压断电
+                if not is_node_powered:
+                    if node.status == NodeStatus.REVIEW_PASS:
+                        # 自身通过但前置失压
+                        bulb = BulbState.OFF
+                    else:
+                        bulb = CircuitEngine.get_bulb_state(node)
+                else:
+                    bulb = CircuitEngine.get_bulb_state(node)
+
             total_estimate_hours += node.estimateHours
             if node.status == NodeStatus.REVIEW_PASS:
                 passed_estimate_hours += node.estimateHours
@@ -141,7 +170,11 @@ class PerspectiveLens:
                 hours=f"{node.actualHours}/{node.estimateHours}h",
                 hasExternalBinding=node.externalBinding is not None,
                 isLogicVerified=node.review.logicVerified,
-                isHumanApproved=node.review.humanSignOff
+                isHumanApproved=node.review.humanSignOff,
+                isPowered=is_node_powered,
+                powerPathBroken=(not is_node_powered and len(node.deps) > 0),
+                moduleProgressPct=module_pct,
+                moduleColorHex=module_color
             )
 
             canvas_nodes.append(CanvasNode(

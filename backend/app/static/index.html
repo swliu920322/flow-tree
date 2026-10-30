@@ -39,79 +39,37 @@
   <script type="text/babel">
     const { useState, useEffect, useRef, useMemo, useCallback } = React;
 
-    // ==========================================
-    // 故事/模块旅程元数据字典 (E2E Storyboards & Lanes)
-    // ==========================================
+    // 模块元数据定义
     const STORYBOARD_METADATA = {
       "STORY-1": {
         id: "STORY-1",
-        name: "模块一：打工人小李的自律逆袭记",
-        subtitle: "立Flag 晨跑打卡 ➔ 10个A币秒速到账 ➔ 买顿大餐犒赏自己 (个人A分闭环)",
+        name: "模块一：打工人小李的自律逆袭 (A分)",
+        subtitle: "立Flag 晨跑打卡 ➔ 10个A币秒速到账 ➔ 犒赏大餐",
         color: "#06b6d4",
         tag: "个人自律",
         icon: "🏃‍♂️",
-        themeBg: "rgba(6, 182, 212, 0.08)",
-        themeBorder: "rgba(6, 182, 212, 0.3)"
+        themeBg: "rgba(6, 182, 212, 0.06)",
+        themeBorder: "rgba(6, 182, 212, 0.25)"
       },
       "STORY-2": {
         id: "STORY-2",
-        name: "模块二：小情侣的甜宠互勉大作战",
-        subtitle: "扫码绑定女友 ➔ 派发早睡任务 ➔ 拍照交作业 ➔ 女友审批发奖 ➔ 请喝奶茶核销 (伙伴B分闭环)",
+        name: "模块二：小情侣甜宠互勉大作战 (B分)",
+        subtitle: "扫码绑定女友 ➔ 派发任务 ➔ 拍照审批 ➔ 请喝奶茶核销",
         color: "#ec4899",
         tag: "情侣互勉",
         icon: "👫",
-        themeBg: "rgba(236, 72, 153, 0.08)",
-        themeBorder: "rgba(236, 72, 153, 0.3)"
+        themeBg: "rgba(236, 72, 153, 0.06)",
+        themeBorder: "rgba(236, 72, 153, 0.25)"
       },
       "STORY-3": {
         id: "STORY-3",
         name: "模块三：月光族抵抗奶茶诱惑存钱",
-        subtitle: "立2000元存钱梦想 ➔ 忍住不买随手记 ➔ 破功据实扣款警示 ➔ 存满买手机登记发票 (克制挑战)",
+        subtitle: "立2000元梦想 ➔ 忍住随手记 ➔ 破功扣款 ➔ 买手机发票",
         color: "#eab308",
         tag: "克制存钱",
         icon: "🐷",
-        themeBg: "rgba(234, 179, 8, 0.08)",
-        themeBorder: "rgba(234, 179, 8, 0.3)"
-      },
-      "LANE-A": {
-        id: "LANE-A",
-        name: "航道一：个人自律践行闭环 (A分)",
-        subtitle: "习惯打卡与个人分账",
-        color: "#06b6d4",
-        tag: "个人自律",
-        icon: "🏃‍♂️",
-        themeBg: "rgba(6, 182, 212, 0.08)",
-        themeBorder: "rgba(6, 182, 212, 0.3)"
-      },
-      "LANE-B": {
-        id: "LANE-B",
-        name: "航道二：伙伴他律与商城闭环 (B分)",
-        subtitle: "双人监督与商城兑换",
-        color: "#a855f7",
-        tag: "双人互勉",
-        icon: "👫",
-        themeBg: "rgba(168, 85, 247, 0.08)",
-        themeBorder: "rgba(168, 85, 247, 0.3)"
-      },
-      "LANE-C": {
-        id: "LANE-C",
-        name: "航道三：冲动克制储蓄挑战闭环",
-        subtitle: "心理学存钱罐挑战",
-        color: "#84cc16",
-        tag: "心理挑战",
-        icon: "🐷",
-        themeBg: "rgba(132, 204, 22, 0.08)",
-        themeBorder: "rgba(132, 204, 22, 0.3)"
-      },
-      "LANE-INFRA": {
-        id: "LANE-INFRA",
-        name: "公共基座中心：鉴权/行级锁/测试门禁",
-        subtitle: "基础服务与质量守护",
-        color: "#38bdf8",
-        tag: "底座测试",
-        icon: "🛡️",
-        themeBg: "rgba(56, 189, 248, 0.08)",
-        themeBorder: "rgba(56, 189, 248, 0.3)"
+        themeBg: "rgba(234, 179, 8, 0.06)",
+        themeBorder: "rgba(234, 179, 8, 0.25)"
       }
     };
 
@@ -119,18 +77,18 @@
       if (STORYBOARD_METADATA[laneId]) return STORYBOARD_METADATA[laneId];
       return {
         id: laneId,
-        name: laneId ? `模块舱：${laneId}` : "核心业务主链路",
+        name: laneId ? `模块舱：${laneId}` : "核心业务链路",
         subtitle: "端到端业务流转序列",
         color: "#10b981",
         tag: laneId || "业务流",
         icon: "📦",
-        themeBg: "rgba(16, 185, 129, 0.08)",
-        themeBorder: "rgba(16, 185, 129, 0.3)"
+        themeBg: "rgba(16, 185, 129, 0.06)",
+        themeBorder: "rgba(16, 185, 129, 0.25)"
       };
     }
 
     // ==========================================
-    // 自适应树网电路画布 (Tree + Circuit Canvas)
+    // 树网二象性画布引擎 (从项目节点往后·严格因果导通)
     // ==========================================
     function AdaptiveCircuitCanvas({
       nodes,
@@ -147,7 +105,7 @@
     }) {
       const containerRef = useRef(null);
 
-      const [transform, setTransform] = useState({ x: 50, y: 40, scale: 0.95 });
+      const [transform, setTransform] = useState({ x: 40, y: 35, scale: 0.88 });
       const transformRef = useRef(transform);
       transformRef.current = transform;
 
@@ -160,10 +118,9 @@
       nodePositionsRef.current = nodePositions;
 
       const [laneBoxes, setLaneBoxes] = useState({});
-
       const draggingNodeRef = useRef(null);
 
-      // 自适应多模块排布计算 (支持模块折叠)
+      // 布局算法：项目根节点 ➔ 模块根节点 ➔ 任务流水线
       useEffect(() => {
         if (!nodes || nodes.length === 0) {
           setNodePositions({});
@@ -171,69 +128,115 @@
           return;
         }
 
-        const laneMap = {};
-        const laneOrder = [];
-
-        nodes.forEach(n => {
-          const lId = n.raw?.parentId || "MAIN";
-          if (!laneMap[lId]) {
-            laneMap[lId] = [];
-            laneOrder.push(lId);
-          }
-          laneMap[lId].push(n);
-        });
-
         const newPos = {};
         const newBoxes = {};
 
-        const cardWidth = 270;
+        const rootNode = nodes.find(n => n.nodeType === "root");
+        const moduleNodes = nodes.filter(n => n.nodeType === "module");
+        const taskNodes = nodes.filter(n => n.nodeType !== "root" && n.nodeType !== "module");
+
+        // 模块分组
+        const moduleMap = {};
+        const moduleOrder = [];
+        nodes.forEach(n => {
+          const mId = n.raw?.parentId || "STORY-1";
+          if (n.nodeType !== "root") {
+            if (!moduleMap[mId]) {
+              moduleMap[mId] = [];
+              moduleOrder.push(mId);
+            }
+            moduleMap[mId].push(n);
+          }
+        });
+
+        const cardWidth = 265;
         const cardHeight = 125;
-        const gapX = 75;
-        const gapY = 55;
+        const gapX = 65;
+        const gapY = 50;
         const maxCols = 4;
 
-        let currentY = 80;
+        let currentY = 70;
+        const moduleTrackTops = {};
 
-        laneOrder.forEach((lId) => {
-          const lNodes = laneMap[lId];
-          const startX = 60;
-          const trackStartY = currentY;
-          const isCollapsed = collapsedModules.has(lId);
+        // 1. 先计算各模块的 Y 坐标
+        moduleOrder.forEach(mId => {
+          moduleTrackTops[mId] = currentY;
+          const isCollapsed = collapsedModules.has(mId);
+          const mNodes = moduleMap[mId] || [];
+          const tasksInModule = mNodes.filter(n => n.nodeType !== "module");
 
           if (isCollapsed) {
-            // 模块折叠状态：缩减为一个高度仅 70px 的紧凑胶囊卡片
-            newBoxes[lId] = {
-              x: startX - 25,
-              y: trackStartY - 45,
-              width: 720,
-              height: 75,
-              nodeCount: lNodes.length,
+            newBoxes[mId] = {
+              x: 390,
+              y: currentY - 40,
+              width: 320,
+              height: 145,
+              nodeCount: tasksInModule.length,
               isCollapsed: true
             };
-            currentY += 105;
+            currentY += 165;
           } else {
-            // 模块展开状态：完整显示内部节点与连线
-            const numNodes = lNodes.length;
-            const totalRows = Math.ceil(numNodes / maxCols);
-            const colsInFirstRow = Math.min(numNodes, maxCols);
+            const numTasks = tasksInModule.length;
+            const totalRows = Math.max(1, Math.ceil(numTasks / maxCols));
+            const colsInRow = Math.min(numTasks, maxCols);
 
-            const trackWidth = Math.max(480, colsInFirstRow * cardWidth + (colsInFirstRow - 1) * gapX + 60);
-            const trackHeight = totalRows * cardHeight + (totalRows - 1) * gapY + 70;
+            const trackWidth = Math.max(420, cardWidth + 50 + colsInRow * (cardWidth + gapX));
+            const trackHeight = Math.max(cardHeight + 40, totalRows * cardHeight + (totalRows - 1) * gapY + 50);
 
-            newBoxes[lId] = {
-              x: startX - 25,
-              y: trackStartY - 45,
+            newBoxes[mId] = {
+              x: 390,
+              y: currentY - 40,
               width: trackWidth,
               height: trackHeight,
-              nodeCount: numNodes,
+              nodeCount: numTasks,
               isCollapsed: false
             };
+            currentY += trackHeight + 50;
+          }
+        });
 
-            lNodes.forEach((node, idx) => {
+        // 2. 项目总电源根节点 (位于最左侧，居中所有模块)
+        if (rootNode) {
+          const totalHeight = currentY - 70;
+          const rootY = Math.max(70, 70 + (totalHeight / 2) - (cardHeight / 2));
+          newPos[rootNode.id] = {
+            x: 60,
+            y: rootY,
+            width: 280,
+            height: cardHeight + 10,
+            isRoot: true
+          };
+        }
+
+        // 3. 各模块根节点与任务节点
+        moduleOrder.forEach(mId => {
+          const trackStartY = moduleTrackTops[mId];
+          const isCollapsed = collapsedModules.has(mId);
+          const mNodes = moduleMap[mId] || [];
+
+          const modRoot = mNodes.find(n => n.nodeType === "module");
+          const mTasks = mNodes.filter(n => n.nodeType !== "module");
+
+          // 模块根节点 (位于 x: 410)
+          if (modRoot) {
+            newPos[modRoot.id] = {
+              x: 410,
+              y: trackStartY,
+              width: cardWidth,
+              height: cardHeight,
+              isModuleRoot: true,
+              laneId: mId
+            };
+          }
+
+          // 展开状态下才排布内部任务卡片
+          if (!isCollapsed) {
+            const tasksStartX = 740;
+            mTasks.forEach((node, idx) => {
               const row = Math.floor(idx / maxCols);
               const col = idx % maxCols;
 
-              const posX = startX + col * (cardWidth + gapX);
+              const posX = tasksStartX + col * (cardWidth + gapX);
               const posY = trackStartY + row * (cardHeight + gapY);
 
               newPos[node.id] = {
@@ -243,11 +246,9 @@
                 height: cardHeight,
                 row,
                 col,
-                laneId: lId
+                laneId: mId
               };
             });
-
-            currentY += trackHeight + 60;
           }
         });
 
@@ -255,7 +256,7 @@
         setLaneBoxes(newBoxes);
       }, [nodes, collapsedModules]);
 
-      // 聚焦节点平移 (自动预留右侧 460px 抽屉空间)
+      // 聚焦平移
       const focusOnNode = useCallback((nodeId) => {
         const targetPos = nodePositionsRef.current[nodeId];
         const container = containerRef.current;
@@ -369,7 +370,7 @@
 
       const zoomIn = () => setTransform(prev => ({ ...prev, scale: Math.min(prev.scale * 1.2, 3.0) }));
       const zoomOut = () => setTransform(prev => ({ ...prev, scale: Math.max(prev.scale * 0.8, 0.2) }));
-      const resetView = () => setTransform({ x: 50, y: 40, scale: 0.95 });
+      const resetView = () => setTransform({ x: 40, y: 35, scale: 0.88 });
 
       return (
         <div
@@ -380,7 +381,7 @@
             isPanning ? 'cursor-grabbing' : 'cursor-grab'
           }`}
         >
-          {/* 画布控制条 */}
+          {/* 画布缩放工具条 */}
           <div className="absolute bottom-6 left-6 z-20 flex items-center gap-1.5 bg-slate-900/90 border border-slate-700/80 rounded-xl p-1.5 shadow-2xl backdrop-blur-md">
             <button onClick={zoomIn} title="放大" className="w-8 h-8 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-300 hover:text-white font-mono text-base font-bold">＋</button>
             <button onClick={zoomOut} title="缩小" className="w-8 h-8 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-300 hover:text-white font-mono text-base font-bold">－</button>
@@ -400,7 +401,7 @@
               pointerEvents: 'none'
             }}
           >
-            {/* 模块级边界卡片与责任人列表 */}
+            {/* 模块级边界外框与折叠控制 */}
             {Object.keys(laneBoxes).map(lId => {
               const meta = getStoryMeta(lId);
               const box = laneBoxes[lId];
@@ -411,7 +412,6 @@
 
               return (
                 <div key={lId}>
-                  {/* 模块半透明外框 */}
                   <div
                     style={{
                       position: "absolute",
@@ -426,12 +426,11 @@
                     className="rounded-2xl border backdrop-blur-sm -z-10 transition-all duration-300 shadow-lg"
                   />
 
-                  {/* 模块头部信息与折叠控制 */}
                   <div
                     style={{
                       position: "absolute",
-                      left: `${box.x + 20}px`,
-                      top: `${box.y + 14}px`,
+                      left: `${box.x + 18}px`,
+                      top: `${box.y + 12}px`,
                       pointerEvents: "auto"
                     }}
                     className="flex items-center gap-3 z-10"
@@ -449,31 +448,20 @@
                       {meta.name}
                     </h3>
 
-                    {/* 模块负责人列表 (第一类公民展现) */}
                     {modSummary?.assignees && modSummary.assignees.length > 0 && (
                       <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-900/90 border border-slate-700 text-[11px] text-slate-300">
-                        <span className="text-slate-400">👥 负责人:</span>
+                        <span className="text-slate-400">👥 负责团队:</span>
                         <span className="font-medium text-emerald-400">
                           {modSummary.assignees.join(", ")}
                         </span>
                       </div>
-                    )}
-
-                    <span className="text-[10px] px-2 py-0.5 rounded font-mono bg-slate-900/90 text-slate-300 border border-slate-700">
-                      {box.nodeCount} 项任务
-                    </span>
-
-                    {modSummary && (
-                      <span className="text-[11px] font-mono text-emerald-400 font-bold">
-                        {Math.round(modSummary.progressRate * 100)}% 导通
-                      </span>
                     )}
                   </div>
                 </div>
               );
             })}
 
-            {/* SVG 导线层 (折叠模块不显示连线) */}
+            {/* SVG 导线层 (严格执行：前面不通，导线失压断电无流动) */}
             <svg
               className="absolute pointer-events-none overflow-visible"
               style={{ width: '1px', height: '1px', left: 0, top: 0 }}
@@ -504,39 +492,32 @@
                 let d = "";
 
                 if (isSameRow) {
-                  const startX = sPos.x + (sPos.width || 270);
-                  const startY = sPos.y + (sPos.height || 125) / 2;
+                  const startX = sPos.x + (sPos.width || cardWidth);
+                  const startY = sPos.y + (sPos.height || cardHeight) / 2;
                   const endX = tPos.x;
-                  const endY = tPos.y + (tPos.height || 125) / 2;
+                  const endY = tPos.y + (tPos.height || cardHeight) / 2;
                   const deltaX = Math.max(25, (endX - startX) / 2);
                   d = `M ${startX} ${startY} C ${startX + deltaX} ${startY}, ${endX - deltaX} ${endY}, ${endX} ${endY}`;
                 } else {
-                  const startX = sPos.x + (sPos.width || 270) / 2;
-                  const startY = sPos.y + (sPos.height || 125);
-                  const endX = tPos.x + (tPos.width || 270) / 2;
-                  const endY = tPos.y;
-                  const midY = (startY + endY) / 2;
-                  d = `M ${startX} ${startY} C ${startX + midY}, ${endX} ${midY}, ${endX} ${endY}`;
+                  const startX = sPos.x + (sPos.width || cardWidth);
+                  const startY = sPos.y + (sPos.height || cardHeight) / 2;
+                  const endX = tPos.x;
+                  const endY = tPos.y + (tPos.height || cardHeight) / 2;
+                  const midX = (startX + endX) / 2;
+                  d = `M ${startX} ${startY} C ${midX} ${startY}, ${midX} ${endY}, ${endX} ${endY}`;
                 }
 
                 const isEnergized = e.circuitState === "energized";
                 const isBlocked = e.circuitState === "blocked";
 
-                const sNode = nodes.find(n => n.id === e.source);
-                const tNode = nodes.find(n => n.id === e.target);
-
                 let edgeOpacity = 1.0;
                 if (highlightNodeIds && highlightNodeIds.length > 0) {
                   const isInHighlight = highlightNodeIds.includes(e.source) && highlightNodeIds.includes(e.target);
                   edgeOpacity = isInHighlight ? 1.0 : 0.1;
-                } else if (assigneeFilter !== "all") {
-                  const sMatch = sNode?.raw?.assignee?.includes(assigneeFilter);
-                  const tMatch = tNode?.raw?.assignee?.includes(assigneeFilter);
-                  if (!sMatch && !tMatch) edgeOpacity = 0.15;
                 }
 
-                let strokeColor = "#334155";
-                let strokeWidth = 2.5;
+                let strokeColor = e.strokeColor || "#334155";
+                let strokeWidth = isEnergized ? 3 : 2;
                 let strokeFilter = "";
 
                 if (isBlocked) {
@@ -545,7 +526,6 @@
                   strokeFilter = "url(#glowRed)";
                 } else if (isEnergized) {
                   strokeColor = "#10b981";
-                  strokeWidth = 3;
                   strokeFilter = "url(#glowGreen)";
                 }
 
@@ -574,14 +554,17 @@
               })}
             </svg>
 
-            {/* 任务节点卡片 (折叠模块下的节点隐藏) */}
+            {/* 节点层 (项目根节点 / 模块根节点随百分比变色 / 任务节点) */}
             {nodes.map(node => {
               const pos = nodePositions[node.id];
-              if (!pos) return null; // 被折叠的模块节点 pos 为空
+              if (!pos) return null;
 
               const isSelected = selectedNodeId === node.id;
               const bulb = node.bulbState;
-              const isProxySlot = node.raw?.tags?.includes("proxy");
+              const isRoot = node.nodeType === "root";
+              const isModuleRoot = node.nodeType === "module";
+              const isPowered = node.dataOverlay.isPowered;
+              const pathBroken = node.dataOverlay.powerPathBroken;
 
               let nodeOpacity = 1.0;
               let isFocus = true;
@@ -591,7 +574,7 @@
                   nodeOpacity = 0.2;
                   isFocus = false;
                 }
-              } else if (assigneeFilter !== "all" && !isProxySlot) {
+              } else if (assigneeFilter !== "all" && !isRoot && !isModuleRoot) {
                 const match = node.raw?.assignee?.includes(assigneeFilter);
                 if (!match) {
                   nodeOpacity = 0.25;
@@ -599,41 +582,58 @@
                 }
               }
 
-              if (riskOnlyFilter && node.status === "review_pass" && !isProxySlot) {
+              if (riskOnlyFilter && node.status === "review_pass" && !isRoot && !isModuleRoot) {
                 nodeOpacity = 0.15;
               }
 
               let bulbBg = "bg-slate-700 text-slate-400";
               let cardBorder = "border-slate-800 bg-slate-900/95";
               let bulbGlowClass = "";
-              let statusLabel = "待启动";
+              let statusLabel = "待开工";
 
-              if (isProxySlot) {
-                bulbBg = "bg-sky-400 shadow-[0_0_12px_#38bdf8]";
-                cardBorder = "border-sky-500/40 bg-sky-950/20";
-                statusLabel = "通用基座 (已就绪)";
-              } else if (bulb === "green_on") {
-                bulbBg = "bg-emerald-500 text-white shadow-[0_0_15px_#10b981]";
-                cardBorder = "border-emerald-500/60 bg-emerald-950/30";
-                statusLabel = "端验收通过";
-              } else if (bulb === "blue_waiting") {
-                bulbBg = "bg-sky-500 text-white shadow-[0_0_15px_#0ea5e9]";
-                cardBorder = "border-sky-500/60 bg-sky-950/30";
-                statusLabel = "待人工终审";
-              } else if (bulb === "breathing") {
-                bulbBg = "bg-amber-500 text-white";
-                cardBorder = "border-amber-500/60 bg-amber-950/30";
-                bulbGlowClass = "bulb-breathing";
-                statusLabel = "体验走查中";
-              } else if (bulb === "red_alert") {
-                bulbBg = "bg-rose-600 text-white";
-                cardBorder = "border-rose-600/80 bg-rose-950/40";
-                bulbGlowClass = "bulb-alert";
-                statusLabel = "缺陷阻断";
+              if (isRoot) {
+                // 项目总电源母线
+                bulbBg = "bg-emerald-400 text-white shadow-[0_0_20px_#10b981]";
+                cardBorder = "border-emerald-500 bg-slate-900 shadow-[0_0_25px_rgba(16,185,129,0.25)]";
+                statusLabel = "⚡ 项目总电源·满压放电";
+              } else if (isModuleRoot) {
+                // 模块根节点：颜色严格随完成百分比动态呈现！
+                const modColor = node.dataOverlay.moduleColorHex || "#64748B";
+                const modPct = Math.round((node.dataOverlay.moduleProgressPct || 0) * 100);
+                bulbBg = `text-white`;
+                bulbGlowClass = modPct >= 100 ? "bulb-breathing" : "";
+                cardBorder = `border-2 bg-slate-900/95 shadow-xl`;
+                statusLabel = `变电站导通率: ${modPct}%`;
+              } else {
+                // 常规任务节点
+                if (pathBroken) {
+                  bulbBg = "bg-slate-700 text-slate-500";
+                  cardBorder = "border-slate-800/80 bg-slate-950/90";
+                  statusLabel = "⚡ 前置失压·断电中";
+                  nodeOpacity = Math.min(nodeOpacity, 0.55);
+                } else if (bulb === "green_on") {
+                  bulbBg = "bg-emerald-500 text-white shadow-[0_0_15px_#10b981]";
+                  cardBorder = "border-emerald-500/60 bg-emerald-950/30";
+                  statusLabel = "端验收通过";
+                } else if (bulb === "blue_waiting") {
+                  bulbBg = "bg-sky-500 text-white shadow-[0_0_15px_#0ea5e9]";
+                  cardBorder = "border-sky-500/60 bg-sky-950/30";
+                  statusLabel = "待人工终审";
+                } else if (bulb === "breathing") {
+                  bulbBg = "bg-amber-500 text-white";
+                  cardBorder = "border-amber-500/60 bg-amber-950/30";
+                  bulbGlowClass = "bulb-breathing";
+                  statusLabel = "体验走查中";
+                } else if (bulb === "red_alert") {
+                  bulbBg = "bg-rose-600 text-white";
+                  cardBorder = "border-rose-600/80 bg-rose-950/40";
+                  bulbGlowClass = "bulb-alert";
+                  statusLabel = "缺陷阻断";
+                }
               }
 
               const desc = node.raw?.description || "";
-              const cleanDesc = desc.replace("【用户视点】", "").trim();
+              const cleanDesc = desc.replace("【用户视点】", "").replace("【全系统一级电源母线】", "").replace("【模块一级受电端】", "").trim();
 
               return (
                 <div
@@ -651,16 +651,23 @@
                     width: `${pos.width}px`,
                     height: `${pos.height}px`,
                     opacity: nodeOpacity,
+                    borderColor: isModuleRoot ? node.dataOverlay.moduleColorHex : undefined,
                     pointerEvents: 'auto'
                   }}
-                  className={`group cursor-move rounded-xl border-2 p-3 transition-all duration-200 backdrop-blur-md shadow-xl flex flex-col justify-between ${cardBorder} ${
-                    isSelected ? "ring-2 ring-emerald-400 scale-[1.03] z-10" : isFocus ? "hover:border-slate-500 hover:scale-[1.01]" : ""
+                  className={`group cursor-move rounded-xl p-3 transition-all duration-200 backdrop-blur-md shadow-xl flex flex-col justify-between ${cardBorder} ${
+                    isSelected ? "ring-2 ring-emerald-400 scale-[1.03] z-20" : isFocus ? "hover:border-slate-500 hover:scale-[1.01]" : ""
                   }`}
                 >
+                  {/* 卡片头部 */}
                   <div className="flex items-start justify-between gap-1.5">
                     <div className="flex items-center gap-2 overflow-hidden flex-1">
-                      <div className={`w-3.5 h-3.5 rounded-full shrink-0 ${bulbBg} ${bulbGlowClass}`} />
-                      <span className="font-bold text-xs truncate text-slate-100 group-hover:text-emerald-300">
+                      <div
+                        style={{
+                          backgroundColor: isModuleRoot ? node.dataOverlay.moduleColorHex : undefined
+                        }}
+                        className={`w-3.5 h-3.5 rounded-full shrink-0 ${bulbBg} ${bulbGlowClass}`}
+                      />
+                      <span className={`font-bold truncate text-slate-100 ${isRoot ? "text-sm text-emerald-300" : isModuleRoot ? "text-xs font-semibold" : "text-xs group-hover:text-emerald-300"}`}>
                         {node.label}
                       </span>
                     </div>
@@ -669,28 +676,54 @@
                     </span>
                   </div>
 
-                  <p className="text-[11px] text-slate-400 line-clamp-1 leading-snug">
-                    {cleanDesc || "端到端交互走查节点"}
-                  </p>
+                  {/* 描述与百分比 */}
+                  {isModuleRoot ? (
+                    <div className="space-y-1">
+                      <div className="flex justify-between items-center text-[11px] font-mono">
+                        <span className="text-slate-400">模块通电率:</span>
+                        <span style={{ color: node.dataOverlay.moduleColorHex }} className="font-bold">
+                          {Math.round((node.dataOverlay.moduleProgressPct || 0) * 100)}%
+                        </span>
+                      </div>
+                      <div className="w-full h-1.5 rounded-full bg-slate-800 overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all duration-500"
+                          style={{
+                            width: `${Math.round((node.dataOverlay.moduleProgressPct || 0) * 100)}%`,
+                            backgroundColor: node.dataOverlay.moduleColorHex
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-slate-400 line-clamp-1 leading-snug">
+                      {cleanDesc || "业务导通节点"}
+                    </p>
+                  )}
 
+                  {/* 状态栏 */}
                   <div className="text-[10px] font-mono text-slate-400 flex items-center justify-between">
-                    <span className={isProxySlot ? "text-sky-300 font-bold" : bulb === "green_on" ? "text-emerald-400 font-medium" : bulb === "blue_waiting" ? "text-sky-400 font-medium" : ""}>
+                    <span className={pathBroken ? "text-amber-400 font-bold" : isRoot ? "text-emerald-400 font-bold" : bulb === "green_on" ? "text-emerald-400 font-medium" : bulb === "blue_waiting" ? "text-sky-400 font-medium" : ""}>
                       {statusLabel}
                     </span>
                     <span className="text-slate-500">{node.dataOverlay.hours}</span>
                   </div>
 
+                  {/* 底部角色与契约标记 */}
                   <div className="flex items-center justify-between text-[11px] pt-1.5 border-t border-slate-800/80">
                     <div className="flex items-center gap-1.5 text-slate-400">
                       <span className="w-4 h-4 rounded-full bg-slate-800 flex items-center justify-center text-[9px] text-slate-300 font-bold">
                         {node.dataOverlay.assignee ? node.dataOverlay.assignee[0] : "?"}
                       </span>
-                      <span className="truncate max-w-[110px] text-[10px] font-medium text-slate-300">
-                        {node.dataOverlay.assignee || "未分配"}
+                      <span className="truncate max-w-[120px] text-[10px] font-medium text-slate-300">
+                        {node.dataOverlay.assignee || "架构总线"}
                       </span>
                     </div>
 
                     <div className="flex items-center gap-1">
+                      {pathBroken && (
+                        <span className="text-amber-400 text-[10px]" title="前面不通，后面失压">⚡断电</span>
+                      )}
                       {node.dataOverlay.hasExternalBinding && (
                         <span className="px-1.5 py-0.2 rounded text-[9px] bg-indigo-950/90 text-indigo-300 border border-indigo-700/60 font-mono">
                           ⚡ 契约
@@ -710,7 +743,7 @@
     }
 
     // ==========================================
-    // 平台层主应用 App (通用引擎控制中枢)
+    // 平台层主应用 App
     // ==========================================
     function App() {
       const [projectList, setProjectList] = useState([]);
@@ -726,9 +759,7 @@
       const [riskOnlyFilter, setRiskOnlyFilter] = useState(false);
       const [isSimulating, setIsSimulating] = useState(false);
 
-      // 模块折叠状态集合
       const [collapsedModules, setCollapsedModules] = useState(new Set());
-      // 卡点归属面板开关
       const [bottlenecksModalOpen, setBottlenecksModalOpen] = useState(false);
 
       const toggleModuleCollapse = (moduleId) => {
@@ -740,19 +771,16 @@
         });
       };
 
-      // 提取全部可用参与人员列表
       const allAssignees = useMemo(() => {
         if (!canvasData?.personalSupplyChains) return [];
         return Object.keys(canvasData.personalSupplyChains);
       }, [canvasData]);
 
-      // 当前被聚焦人员的上下游链路
       const currentSupplyChain = useMemo(() => {
         if (assigneeFilter === "all" || !canvasData?.personalSupplyChains) return null;
         return canvasData.personalSupplyChains[assigneeFilter] || null;
       }, [assigneeFilter, canvasData]);
 
-      // 当前供应链相关的所有高亮节点
       const highlightNodeIds = useMemo(() => {
         if (!currentSupplyChain) return null;
         const ids = [...currentSupplyChain.myNodes];
@@ -852,7 +880,7 @@
       if (loading) {
         return (
           <div className="h-screen flex items-center justify-center bg-slate-950 text-emerald-400 font-mono text-lg">
-            ⚡ 正在规划树网二象性状态电路中枢...
+            ⚡ 正在规划从项目节点向后的因果电路总网...
           </div>
         );
       }
@@ -891,7 +919,7 @@
 
             {/* 顶栏中心：模块组织大盘与卡点报警 */}
             <div className="flex items-center gap-3">
-              {/* 卡点归属报警徽章 (第一类公民) */}
+              {/* 卡点归属报警徽章 */}
               <button
                 onClick={() => setBottlenecksModalOpen(true)}
                 className={`flex items-center gap-1.5 px-3 py-1 rounded-lg border text-xs font-mono transition-all cursor-pointer shadow-sm ${
@@ -908,10 +936,12 @@
                 </span>
               </button>
 
-              {/* 模块级通电微缩条 */}
+              {/* 模块级通电微缩条 (随百分比变色) */}
               {stats.modules?.map(m => {
                 const meta = getStoryMeta(m.moduleId);
                 const pct = Math.round(m.progressRate * 100);
+                const colorHex = pct >= 100 ? "#059669" : pct >= 80 ? "#10b981" : pct >= 50 ? "#0ea5e9" : "#eab308";
+
                 return (
                   <div
                     key={m.moduleId}
@@ -920,9 +950,12 @@
                     <span>{meta.icon}</span>
                     <span className="text-slate-400 font-sans">{meta.tag}</span>
                     <div className="w-12 h-1.5 rounded-full bg-slate-800 overflow-hidden">
-                      <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${pct}%` }} />
+                      <div
+                        className="h-full rounded-full transition-all duration-500"
+                        style={{ width: `${pct}%`, backgroundColor: colorHex }}
+                      />
                     </div>
-                    <span className="font-bold text-emerald-400">{pct}%</span>
+                    <span className="font-bold" style={{ color: colorHex }}>{pct}%</span>
                   </div>
                 );
               })}
@@ -941,9 +974,8 @@
             </div>
           </header>
 
-          {/* 第二栏：业务透镜 + 责任人聚焦与风险过滤 */}
+          {/* 第二栏：视角透镜 + 责任人聚焦与风险过滤 */}
           <div className="h-12 border-b border-slate-800 px-6 flex items-center justify-between bg-slate-900/60 shrink-0 z-20">
-            {/* 左侧：动态视角透镜 */}
             <div className="flex items-center gap-1.5 overflow-x-auto custom-scroll">
               <span className="text-xs text-slate-500 mr-1 font-mono shrink-0">视角透镜:</span>
               {projectMeta?.perspectives.map((p) => {
@@ -964,7 +996,6 @@
               })}
             </div>
 
-            {/* 右侧：责任人聚焦与风险过滤 */}
             <div className="flex items-center gap-4 shrink-0">
               <div className="flex items-center gap-1.5 text-xs">
                 <span className="text-slate-500 font-mono">工位视角:</span>
@@ -994,7 +1025,7 @@
             </div>
           </div>
 
-          {/* 第三栏：个人工位供应链上下文条 (当选中具体人员时浮现) */}
+          {/* 第三栏：个人工位供应链上下文条 */}
           {currentSupplyChain && (
             <div className="h-10 border-b border-indigo-900/60 bg-indigo-950/40 px-6 flex items-center justify-between text-xs font-mono shrink-0 z-20 animate-in slide-in-from-top-2">
               <div className="flex items-center gap-3">
@@ -1003,7 +1034,6 @@
                   <span>【{assigneeFilter}】在全局链路中的工位:</span>
                 </span>
 
-                {/* 上游谁卡我 */}
                 <div className="flex items-center gap-1.5 text-slate-300">
                   <span className="text-slate-500">⬅️ 上游输入 (我等谁):</span>
                   {currentSupplyChain.upstreamFeeders.length === 0 ? (
@@ -1026,13 +1056,11 @@
                   )}
                 </div>
 
-                {/* 我的在手任务 */}
                 <div className="flex items-center gap-1.5 text-slate-300 pl-3 border-l border-indigo-900">
                   <span className="text-slate-500">⭐ 在手任务:</span>
                   <span className="text-sky-300 font-bold">{currentSupplyChain.myNodes.length} 项</span>
                 </div>
 
-                {/* 下游谁等我 */}
                 <div className="flex items-center gap-1.5 text-slate-300 pl-3 border-l border-indigo-900">
                   <span className="text-slate-500">➡️ 下游交付 (谁等我):</span>
                   {currentSupplyChain.downstreamWaiters.length === 0 ? (
@@ -1108,7 +1136,6 @@
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-5 space-y-4 text-xs custom-scroll bg-slate-900">
-                  {/* 流转状态卡 */}
                   <div className="bg-slate-950 p-4 rounded-xl border border-slate-800 space-y-2.5">
                     <div className="flex justify-between items-center">
                       <span className="text-slate-400">端走查状态:</span>
@@ -1126,7 +1153,6 @@
                     </div>
                   </div>
 
-                  {/* 自动化测试契约 */}
                   {selectedNode.externalBinding && (
                     <div className="bg-indigo-950/30 p-4 rounded-xl border border-indigo-900/60 space-y-2">
                       <div className="font-semibold text-indigo-300 flex items-center gap-1.5 text-xs">
@@ -1142,7 +1168,6 @@
                     </div>
                   )}
 
-                  {/* 端体验与客观验收标准 DoD */}
                   <div>
                     <h3 className="font-semibold text-slate-200 mb-2 flex items-center gap-1.5 text-sm">
                       <span>📋 端体验与客观验收标准 (DoD)</span>
@@ -1157,7 +1182,6 @@
                     </ul>
                   </div>
 
-                  {/* 审查与反馈意见 */}
                   <div>
                     <h3 className="font-semibold text-slate-200 mb-2 flex items-center gap-1.5 text-sm">
                       <span>💬 真机体验走查反馈意见</span>
@@ -1176,7 +1200,6 @@
                   </div>
                 </div>
 
-                {/* 底部操作区 */}
                 <div className="p-5 border-t border-slate-800 bg-slate-950">
                   {selectedNode.status === "logic_verified" ? (
                     <div className="space-y-2.5">
@@ -1253,7 +1276,6 @@
                           </span>
                         </div>
 
-                        {/* 责任人与阻断受害者 */}
                         <div className="grid grid-cols-2 gap-3 text-xs bg-slate-900/60 p-3 rounded-lg border border-slate-800/80 font-mono">
                           <div>
                             <span className="text-slate-400">👤 当前卡在: </span>

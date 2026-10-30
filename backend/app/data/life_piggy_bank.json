@@ -20,7 +20,7 @@
       "description": "立每日晨跑Flag -> 打卡写心得 -> 10个A币入袋 -> 攒够买大餐犒赏自己",
       "icon": "User",
       "includeTags": ["story_1"],
-      "includeNodeTypes": ["feature", "component"],
+      "includeNodeTypes": [],
       "bypassUnmatched": false
     },
     {
@@ -29,7 +29,7 @@
       "description": "加女友为监督官 -> 女友派发早睡任务 -> 拍照交作业 -> 女友审批发奖 -> 请喝奶茶核销",
       "icon": "Heart",
       "includeTags": ["story_2"],
-      "includeNodeTypes": ["feature", "api"],
+      "includeNodeTypes": [],
       "bypassUnmatched": false
     },
     {
@@ -38,11 +38,103 @@
       "description": "设定存钱梦想 -> 忍住不喝随手记账 -> 破功扣款警示 -> 存满买手机登记发票",
       "icon": "PiggyBank",
       "includeTags": ["story_3"],
-      "includeNodeTypes": ["feature", "api"],
+      "includeNodeTypes": [],
       "bypassUnmatched": false
     }
   ],
   "nodes": [
+    {
+      "nodeId": "ROOT-PROJECT",
+      "parentId": null,
+      "nodeType": "root",
+      "name": "⚡ Life-Piggy-Bank 全栈系统母线中枢",
+      "description": "【系统一级总电源】统一向三大业务模块持续输送导通电能",
+      "tags": ["project_root", "story_1", "story_2", "story_3"],
+      "assignRole": "架构与发布",
+      "assignee": "架构总线",
+      "status": "review_pass",
+      "deps": [],
+      "acceptanceCriteria": [
+        "全栈基础运行环境与核心路由导通放电",
+        "保持主电源电压稳定"
+      ],
+      "estimateHours": 10.0,
+      "actualHours": 10.0,
+      "review": {
+        "logicVerified": true,
+        "humanSignOff": true,
+        "comments": ["【系统主电源就绪】全栈主干代码合并完成，一级高压母线正常放电！"]
+      }
+    },
+    {
+      "nodeId": "MOD-1",
+      "parentId": "STORY-1",
+      "nodeType": "module",
+      "name": "📦 模块一：个人自律践行变电站 (A分)",
+      "description": "【模块一级受电端】负责个人习惯打卡、树形卡片与A代币账本",
+      "tags": ["module_root", "story_1"],
+      "assignRole": "前端体验牵头",
+      "assignee": "Alice (Flutter)",
+      "status": "review_pass",
+      "deps": ["ROOT-PROJECT"],
+      "acceptanceCriteria": [
+        "从项目总电源受电成功",
+        "模块内部 5 个步骤串行闭环推进"
+      ],
+      "estimateHours": 6.0,
+      "actualHours": 6.0,
+      "review": {
+        "logicVerified": true,
+        "humanSignOff": true,
+        "comments": ["【变电站就绪】接收主电源电力，开始向下游习惯打卡链路供电！"]
+      }
+    },
+    {
+      "nodeId": "MOD-2",
+      "parentId": "STORY-2",
+      "nodeType": "module",
+      "name": "📦 模块二：情侣互勉与商城变电站 (B分)",
+      "description": "【模块一级受电端】负责双人羁绊、任务审批与专属商城核销",
+      "tags": ["module_root", "story_2"],
+      "assignRole": "后端分账牵头",
+      "assignee": "Bob (FastAPI)",
+      "status": "review_pass",
+      "deps": ["ROOT-PROJECT"],
+      "acceptanceCriteria": [
+        "从项目总电源受电成功",
+        "模块内部 7 个步骤串行闭环推进"
+      ],
+      "estimateHours": 6.0,
+      "actualHours": 6.0,
+      "review": {
+        "logicVerified": true,
+        "humanSignOff": true,
+        "comments": ["【变电站就绪】接收主电源电力，开始向下游双人互勉链路供电！"]
+      }
+    },
+    {
+      "nodeId": "MOD-3",
+      "parentId": "STORY-3",
+      "nodeType": "module",
+      "name": "📦 模块三：克制储蓄挑战变电站",
+      "description": "【模块一级受电端】负责冲动消费克制、惩罚扣款与买单发票",
+      "tags": ["module_root", "story_3"],
+      "assignRole": "体验架构牵头",
+      "assignee": "Alice + Bob",
+      "status": "review_pass",
+      "deps": ["ROOT-PROJECT"],
+      "acceptanceCriteria": [
+        "从项目总电源受电成功",
+        "模块内部 4 个步骤串行闭环推进"
+      ],
+      "estimateHours": 6.0,
+      "actualHours": 6.0,
+      "review": {
+        "logicVerified": true,
+        "humanSignOff": true,
+        "comments": ["【变电站就绪】接收主电源电力，全链路 100% 满电导通！"]
+      }
+    },
     {
       "nodeId": "S1-01",
       "parentId": "STORY-1",
@@ -53,7 +145,7 @@
       "assignRole": "全栈体验",
       "assignee": "Alice + Bob",
       "status": "review_pass",
-      "deps": [],
+      "deps": ["MOD-1"],
       "acceptanceCriteria": [
         "【端体验走查】冷启动 1.2 秒内完成加载，无需反复输入账号密码",
         "【端安全性断言】安全隔离小李的专属数据，不产生任何隐私串线"
@@ -174,7 +266,7 @@
       "assignRole": "全栈体验",
       "assignee": "Alice + Bob",
       "status": "review_pass",
-      "deps": [],
+      "deps": ["MOD-2"],
       "acceptanceCriteria": [
         "【端体验走查】双方建立双向契约，动态识别“女友是监督发行方，小李是执行方”",
         "【端账本断言】系统自动为小李开立专属由女友背书的“女友代币 (B分)”独立账本"
@@ -347,7 +439,7 @@
       "assignRole": "全栈体验",
       "assignee": "Alice + Bob",
       "status": "review_pass",
-      "deps": ["S1-01"],
+      "deps": ["MOD-3"],
       "acceptanceCriteria": [
         "【端体验走查】生成一只可爱的小猪储蓄罐，初始进度 0%，界面温馨鼓励",
         "【端约束断言】同一时期严格保持一个活跃挑战，集中火力攻克"

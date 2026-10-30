@@ -95,6 +95,10 @@ class CanvasNodeOverlay(BaseModel):
     hasExternalBinding: bool
     isLogicVerified: bool
     isHumanApproved: bool
+    isPowered: bool = True
+    powerPathBroken: bool = False
+    moduleProgressPct: Optional[float] = None
+    moduleColorHex: Optional[str] = None
 
 class CanvasNode(BaseModel):
     id: str

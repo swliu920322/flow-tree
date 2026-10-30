@@ -51,24 +51,100 @@ class CircuitEngine:
                 dfs(n.nodeId)
 
     @staticmethod
-    def compute_edge_circuit(source: NodeModel, target: NodeModel) -> Tuple[CircuitState, bool, str]:
+    def compute_power_reachability(nodes: List[NodeModel]) -> Dict[str, bool]:
         """
-        计算源节点到目标节点的连线电气状态
+        物理电源连通性检测（严格因果律：前面不通，后面也不能通）：
+        从电源根节点 (ROOT 或无依赖的已放电节点) 出发，
+        仅当前置所有依赖节点均通过终审 (REVIEW_PASS) 且已获电时，下游节点才能通电。
+        """
+        node_map = {n.nodeId: n for n in nodes}
+        powered: Dict[str, bool] = {}
+
+        in_degree = {n.nodeId: 0 for n in nodes}
+        downstream = defaultdict(list)
+        for n in nodes:
+            for d in n.deps:
+                if d in node_map:
+                    in_degree[n.nodeId] += 1
+                    downstream[d].append(n.nodeId)
+
+        from collections import deque
+        queue = deque([n.nodeId for n in nodes if in_degree[n.nodeId] == 0])
+
+        for nid in queue:
+            node = node_map[nid]
+            if node.nodeType.value == "root":
+                powered[nid] = (node.status == NodeStatus.REVIEW_PASS)
+            else:
+                powered[nid] = (node.status == NodeStatus.REVIEW_PASS)
+
+        while queue:
+            curr_id = queue.popleft()
+            curr_powered = powered.get(curr_id, False)
+
+            for next_id in downstream[curr_id]:
+                in_degree[next_id] -= 1
+                if in_degree[next_id] == 0:
+                    next_node = node_map[next_id]
+                    # 必须所有前置依赖都已放电 (REVIEW_PASS) 且通电
+                    all_deps_passed = True
+                    for dep_id in next_node.deps:
+                        if dep_id in node_map:
+                            dep_node = node_map[dep_id]
+                            if dep_node.status != NodeStatus.REVIEW_PASS or not powered.get(dep_id, False):
+                                all_deps_passed = False
+                                break
+                    powered[next_id] = all_deps_passed
+                    queue.append(next_id)
+
+        for n in nodes:
+            if n.nodeId not in powered:
+                powered[n.nodeId] = False
+
+        return powered
+
+    @staticmethod
+    def get_module_color_by_percentage(pct: float, has_reject: bool = False) -> Tuple[BulbState, str]:
+        """
+        根据模块完成百分比计算模块根节点的颜色与发光特征：
+        0%: 冷灰休眠 | 1~29%: 活力橙 | 30~69%: 施工金黄 | 70~89%: 冲刺天蓝 | 90~99%: 准通翠绿 | 100%: 翡翠霓虹绿
+        """
+        if has_reject:
+            return BulbState.ALERT_RED, "#EF4444"        # 故障短路红
+        if pct <= 0.0:
+            return BulbState.OFF, "#64748B"              # 待开工冷灰
+        elif pct < 0.30:
+            return BulbState.BREATHING_YELLOW, "#F97316" # 初步通电活力橙
+        elif pct < 0.70:
+            return BulbState.BREATHING_YELLOW, "#EAB308" # 施工放电金黄
+        elif pct < 0.90:
+            return BulbState.GLOWING_BLUE, "#0EA5E9"     # 冲刺阶段天蓝
+        elif pct < 1.0:
+            return BulbState.ILLUMINATED_GREEN, "#10B981"# 准通阶段翠绿
+        else:
+            return BulbState.ILLUMINATED_GREEN, "#059669"# 100% 满电翡翠绿
+
+    @staticmethod
+    def compute_edge_circuit(source: NodeModel, target: NodeModel, source_powered: bool = True) -> Tuple[CircuitState, bool, str]:
+        """
+        计算源节点到目标节点的连线电气状态（前面不通，导线绝不放电）
         返回: (CircuitState, flowAnimation, strokeColor)
         """
+        if not source_powered:
+            # 源端失压断电，导线熄灭
+            return CircuitState.DORMANT, False, "#334155"
+
         if source.status == NodeStatus.REVIEW_REJECT:
             return CircuitState.BLOCKED, False, "#EF4444"  # 警示红
 
         if source.status == NodeStatus.REVIEW_PASS:
-            if target.status != NodeStatus.PENDING_DEV:
-                return CircuitState.ENERGIZED, True, "#10B981"  # 翡翠绿发光
-            else:
-                return CircuitState.ENERGIZED, False, "#34D399"
+            # 源端已导通，强劲电流涌向下游
+            return CircuitState.ENERGIZED, True, "#10B981"  # 翡翠绿发光流动粒子
 
         if source.status == NodeStatus.LOGIC_VERIFIED:
-            return CircuitState.DORMANT, False, "#38BDF8"  # 科技亮蓝
+            return CircuitState.DORMANT, False, "#38BDF8"  # 科技亮蓝等待放电
 
-        return CircuitState.DORMANT, False, "#64748B"  # 冷灰
+        return CircuitState.DORMANT, False, "#475569"  # 冷灰未通电
 
     @staticmethod
     def analyze_bottlenecks(nodes: List[NodeModel]) -> List[BottleneckImpact]:
