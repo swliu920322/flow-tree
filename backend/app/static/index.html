@@ -120,7 +120,7 @@
       const [laneBoxes, setLaneBoxes] = useState({});
       const draggingNodeRef = useRef(null);
 
-      // 布局算法：项目根节点 ➔ 模块根节点 ➔ 任务流水线
+      // 0交叉自顶向下纯瀑布流排布算法 (Zero-Crossing Planar Waterfall Layout)
       useEffect(() => {
         if (!nodes || nodes.length === 0) {
           setNodePositions({});
@@ -132,96 +132,61 @@
         const newBoxes = {};
 
         const rootNode = nodes.find(n => n.nodeType === "root");
-        const moduleNodes = nodes.filter(n => n.nodeType === "module");
-        const taskNodes = nodes.filter(n => n.nodeType !== "root" && n.nodeType !== "module");
 
-        // 模块分组
-        const moduleMap = {};
-        const moduleOrder = [];
+        const cardWidth = 250;
+        const cardHeight = 115;
+        const levelGapY = 45; // 垂直瀑布级联落差
+
+        // 识别当前包含的模块
+        const mOrder = [];
         nodes.forEach(n => {
-          const mId = n.raw?.parentId || "STORY-1";
-          if (n.nodeType !== "root") {
-            if (!moduleMap[mId]) {
-              moduleMap[mId] = [];
-              moduleOrder.push(mId);
-            }
-            moduleMap[mId].push(n);
+          const mId = n.raw?.parentId;
+          if (mId && !mOrder.includes(mId)) {
+            mOrder.push(mId);
           }
         });
+        if (mOrder.length === 0) mOrder.push("STORY-1");
 
-        const cardWidth = 265;
-        const cardHeight = 125;
-        const gapX = 65;
-        const gapY = 50;
-        const maxCols = 4;
+        const isSingleModuleView = mOrder.length === 1;
 
-        let currentY = 70;
-        const moduleTrackTops = {};
+        // 确定各瀑布列的中心 X 坐标与底衬外框 (3条完全平行的纵向流水通道，绝无跨列交叉)
+        const columnConfig = isSingleModuleView ? {
+          [mOrder[0]]: { centerX: 480, leftBranchX: 330, rightBranchX: 630, boxX: 160, boxWidth: 640 }
+        } : {
+          "STORY-1": { centerX: 210, leftBranchX: 210, rightBranchX: 210, boxX: 60, boxWidth: 300 },
+          "STORY-2": { centerX: 675, leftBranchX: 525, rightBranchX: 825, boxX: 400, boxWidth: 550 },
+          "STORY-3": { centerX: 1315, leftBranchX: 1165, rightBranchX: 1465, boxX: 1040, boxWidth: 550 }
+        };
 
-        // 1. 先计算各模块的 Y 坐标
-        moduleOrder.forEach(mId => {
-          moduleTrackTops[mId] = currentY;
-          const isCollapsed = collapsedModules.has(mId);
-          const mNodes = moduleMap[mId] || [];
-          const tasksInModule = mNodes.filter(n => n.nodeType !== "module");
-
-          if (isCollapsed) {
-            newBoxes[mId] = {
-              x: 390,
-              y: currentY - 40,
-              width: 320,
-              height: 145,
-              nodeCount: tasksInModule.length,
-              isCollapsed: true
-            };
-            currentY += 165;
-          } else {
-            const numTasks = tasksInModule.length;
-            const totalRows = Math.max(1, Math.ceil(numTasks / maxCols));
-            const colsInRow = Math.min(numTasks, maxCols);
-
-            const trackWidth = Math.max(420, cardWidth + 50 + colsInRow * (cardWidth + gapX));
-            const trackHeight = Math.max(cardHeight + 40, totalRows * cardHeight + (totalRows - 1) * gapY + 50);
-
-            newBoxes[mId] = {
-              x: 390,
-              y: currentY - 40,
-              width: trackWidth,
-              height: trackHeight,
-              nodeCount: numTasks,
-              isCollapsed: false
-            };
-            currentY += trackHeight + 50;
-          }
-        });
-
-        // 2. 项目总电源根节点 (位于最左侧，居中所有模块)
+        // 1. 顶部项目一级总电源根节点 (居于全系统顶部中央，如蓄水大坝)
         if (rootNode) {
-          const totalHeight = currentY - 70;
-          const rootY = Math.max(70, 70 + (totalHeight / 2) - (cardHeight / 2));
+          const rootCenterX = isSingleModuleView ? 480 : 765;
           newPos[rootNode.id] = {
-            x: 60,
-            y: rootY,
-            width: 280,
-            height: cardHeight + 10,
+            x: rootCenterX - 150,
+            y: 40,
+            width: 300,
+            height: 105,
             isRoot: true
           };
         }
 
-        // 3. 各模块根节点与任务节点
-        moduleOrder.forEach(mId => {
-          const trackStartY = moduleTrackTops[mId];
+        // 2. 各模块瀑布流排布 (自顶向下，0交叉自然下泄)
+        mOrder.forEach(mId => {
+          const cfg = columnConfig[mId] || {
+            centerX: 600, leftBranchX: 450, rightBranchX: 750, boxX: 350, boxWidth: 500
+          };
           const isCollapsed = collapsedModules.has(mId);
-          const mNodes = moduleMap[mId] || [];
 
-          const modRoot = mNodes.find(n => n.nodeType === "module");
-          const mTasks = mNodes.filter(n => n.nodeType !== "module");
+          const modRoot = nodes.find(n => n.nodeType === "module" && (n.raw?.parentId === mId || n.id === "MOD-" + mId.replace("STORY-", "")));
+          const modTasks = nodes.filter(n => n.nodeType !== "root" && n.nodeType !== "module" && n.raw?.parentId === mId);
 
-          // 模块根节点 (位于 x: 410)
+          const startY = 220;
+
+          // 模块根节点 (位于该瀑布列正中央)
           if (modRoot) {
             newPos[modRoot.id] = {
-              x: 410,
-              y: trackStartY,
+              x: cfg.centerX - cardWidth / 2,
+              y: startY,
               width: cardWidth,
               height: cardHeight,
               isModuleRoot: true,
@@ -229,26 +194,118 @@
             };
           }
 
-          // 展开状态下才排布内部任务卡片
-          if (!isCollapsed) {
-            const tasksStartX = 740;
-            mTasks.forEach((node, idx) => {
-              const row = Math.floor(idx / maxCols);
-              const col = idx % maxCols;
+          let maxBottomY = startY + cardHeight;
 
-              const posX = tasksStartX + col * (cardWidth + gapX);
-              const posY = trackStartY + row * (cardHeight + gapY);
+          if (isCollapsed) {
+            newBoxes[mId] = {
+              x: cfg.boxX,
+              y: startY - 45,
+              width: cfg.boxWidth,
+              height: cardHeight + 65,
+              nodeCount: modTasks.length,
+              isCollapsed: true
+            };
+          } else {
+            // 模块内部根据因果依赖逐级向下落瀑
+            if (mId === "STORY-1") {
+              // 模块一：单链直流瀑布 S1-01 -> S1-02 -> S1-03 -> S1-04 -> S1-05
+              const order1 = ["S1-01", "S1-02", "S1-03", "S1-04", "S1-05"];
+              order1.forEach((nid, stepIdx) => {
+                const node = nodes.find(n => n.id === nid);
+                if (node) {
+                  const nodeY = startY + (stepIdx + 1) * (cardHeight + levelGapY);
+                  newPos[nid] = {
+                    x: cfg.centerX - cardWidth / 2,
+                    y: nodeY,
+                    width: cardWidth,
+                    height: cardHeight,
+                    laneId: mId
+                  };
+                  maxBottomY = Math.max(maxBottomY, nodeY + cardHeight);
+                }
+              });
+            } else if (mId === "STORY-2") {
+              // 模块二：分叉汇聚瀑布 (S2-01分叉 -> 左S2-02/03/04, 右S2-05 -> 汇聚S2-06 -> S2-07)
+              const y01 = startY + (cardHeight + levelGapY);
+              const yFork1 = y01 + (cardHeight + levelGapY);
+              const yFork2 = yFork1 + (cardHeight + levelGapY);
+              const yFork3 = yFork2 + (cardHeight + levelGapY);
+              const yJoin = yFork3 + (cardHeight + levelGapY);
+              const yEnd = yJoin + (cardHeight + levelGapY);
 
-              newPos[node.id] = {
-                x: posX,
-                y: posY,
-                width: cardWidth,
-                height: cardHeight,
-                row,
-                col,
-                laneId: mId
+              const posMap = {
+                "S2-01": { x: cfg.centerX - cardWidth / 2, y: y01 },
+                "S2-02": { x: cfg.leftBranchX - cardWidth / 2, y: yFork1 },
+                "S2-05": { x: cfg.rightBranchX - cardWidth / 2, y: yFork1 },
+                "S2-03": { x: cfg.leftBranchX - cardWidth / 2, y: yFork2 },
+                "S2-04": { x: cfg.leftBranchX - cardWidth / 2, y: yFork3 },
+                "S2-06": { x: cfg.centerX - cardWidth / 2, y: yJoin },
+                "S2-07": { x: cfg.centerX - cardWidth / 2, y: yEnd },
               };
-            });
+
+              Object.keys(posMap).forEach(nid => {
+                const p = posMap[nid];
+                const node = nodes.find(n => n.id === nid);
+                if (node) {
+                  newPos[nid] = {
+                    x: p.x,
+                    y: p.y,
+                    width: cardWidth,
+                    height: cardHeight,
+                    laneId: mId
+                  };
+                  maxBottomY = Math.max(maxBottomY, p.y + cardHeight);
+                }
+              });
+            } else if (mId === "STORY-3") {
+              // 模块三：分叉汇聚瀑布 (S3-01分叉 -> 左S3-02, 右S3-03 -> 汇聚S3-04)
+              const y01 = startY + (cardHeight + levelGapY);
+              const yFork1 = y01 + (cardHeight + levelGapY);
+              const yJoin = yFork1 + (cardHeight + levelGapY);
+
+              const posMap = {
+                "S3-01": { x: cfg.centerX - cardWidth / 2, y: y01 },
+                "S3-02": { x: cfg.leftBranchX - cardWidth / 2, y: yFork1 },
+                "S3-03": { x: cfg.rightBranchX - cardWidth / 2, y: yFork1 },
+                "S3-04": { x: cfg.centerX - cardWidth / 2, y: yJoin }
+              };
+
+              Object.keys(posMap).forEach(nid => {
+                const p = posMap[nid];
+                const node = nodes.find(n => n.id === nid);
+                if (node) {
+                  newPos[nid] = {
+                    x: p.x,
+                    y: p.y,
+                    width: cardWidth,
+                    height: cardHeight,
+                    laneId: mId
+                  };
+                  maxBottomY = Math.max(maxBottomY, p.y + cardHeight);
+                }
+              });
+            } else {
+              modTasks.forEach((node, stepIdx) => {
+                const nodeY = startY + (stepIdx + 1) * (cardHeight + levelGapY);
+                newPos[node.id] = {
+                  x: cfg.centerX - cardWidth / 2,
+                  y: nodeY,
+                  width: cardWidth,
+                  height: cardHeight,
+                  laneId: mId
+                };
+                maxBottomY = Math.max(maxBottomY, nodeY + cardHeight);
+              });
+            }
+
+            newBoxes[mId] = {
+              x: cfg.boxX,
+              y: startY - 45,
+              width: cfg.boxWidth,
+              height: maxBottomY - startY + 65,
+              nodeCount: modTasks.length,
+              isCollapsed: false
+            };
           }
         });
 
@@ -370,7 +427,7 @@
 
       const zoomIn = () => setTransform(prev => ({ ...prev, scale: Math.min(prev.scale * 1.2, 3.0) }));
       const zoomOut = () => setTransform(prev => ({ ...prev, scale: Math.max(prev.scale * 0.8, 0.2) }));
-      const resetView = () => setTransform({ x: 40, y: 35, scale: 0.88 });
+      const resetView = () => setTransform({ x: 50, y: 30, scale: 0.78 });
 
       return (
         <div
@@ -488,23 +545,20 @@
                 const tPos = nodePositions[e.target];
                 if (!sPos || !tPos) return null;
 
-                const isSameRow = Math.abs(sPos.y - tPos.y) < 25;
-                let d = "";
+                // 纯自顶向下瀑布导线计算 (从上级卡片底部正中央 ➔ 下级卡片顶部正中央，0交叉下泄)
+                const startX = sPos.x + sPos.width / 2;
+                const startY = sPos.y + sPos.height;
+                const endX = tPos.x + tPos.width / 2;
+                const endY = tPos.y;
 
-                if (isSameRow) {
-                  const startX = sPos.x + (sPos.width || cardWidth);
-                  const startY = sPos.y + (sPos.height || cardHeight) / 2;
-                  const endX = tPos.x;
-                  const endY = tPos.y + (tPos.height || cardHeight) / 2;
-                  const deltaX = Math.max(25, (endX - startX) / 2);
-                  d = `M ${startX} ${startY} C ${startX + deltaX} ${startY}, ${endX - deltaX} ${endY}, ${endX} ${endY}`;
+                let d = "";
+                if (Math.abs(startX - endX) < 2) {
+                  // 直流落瀑：直线下泻
+                  d = `M ${startX} ${startY} L ${endX} ${endY}`;
                 } else {
-                  const startX = sPos.x + (sPos.width || cardWidth);
-                  const startY = sPos.y + (sPos.height || cardHeight) / 2;
-                  const endX = tPos.x;
-                  const endY = tPos.y + (tPos.height || cardHeight) / 2;
-                  const midX = (startX + endX) / 2;
-                  d = `M ${startX} ${startY} C ${midX} ${startY}, ${midX} ${endY}, ${endX} ${endY}`;
+                  // 分叉/汇聚平滑 S 型垂坠水流 (完全不跨线、0交叉)
+                  const midY = (startY + endY) / 2;
+                  d = `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`;
                 }
 
                 const isEnergized = e.circuitState === "energized";
