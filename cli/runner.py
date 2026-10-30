@@ -6,16 +6,20 @@ import time
 from pathlib import Path
 from typing import Dict, Any
 
+from cli.storage import StorageManager
+
 class CircuitRunner:
-    """负责执行 .flowtree/tests/ 自动化验收套件，并回填电路节点状态"""
+    """负责执行 .flowtree/tests/ 自动化验收套件，并回填电路节点状态与持久化数据指标"""
 
     def __init__(self, target_dir: Path):
         self.target_dir = Path(target_dir).resolve()
         self.flowtree_dir = self.target_dir / ".flowtree"
         self.circuit_file = self.flowtree_dir / "circuit.json"
         self.test_file = self.flowtree_dir / "tests" / "test_circuit_verification.py"
+        self.storage = StorageManager(self.target_dir)
 
     def run(self) -> Dict[str, Any]:
+        start_time = time.time()
         if not self.circuit_file.exists():
             raise FileNotFoundError(f"未找到电路配置文件: {self.circuit_file}，请先运行 flowtree init")
 
@@ -66,7 +70,22 @@ class CircuitRunner:
         with open(self.circuit_file, "w", encoding="utf-8") as f:
             json.dump(circuit_data, f, ensure_ascii=False, indent=2)
 
+        duration_ms = round((time.time() - start_time) * 1000, 2)
+
+        # 本地 SQLite 持久化度量指标
+        run_id = self.storage.record_run(
+            project_id=circuit_data.get("projectId"),
+            project_name=circuit_data.get("projectName"),
+            total_nodes=len(results),
+            passed_nodes=passed_nodes,
+            blocked_nodes=blocked_nodes,
+            node_details=results,
+            duration_ms=duration_ms
+        )
+
         return {
+            "runId": run_id,
+            "durationMs": duration_ms,
             "projectId": circuit_data.get("projectId"),
             "projectName": circuit_data.get("projectName"),
             "circuitData": circuit_data,
