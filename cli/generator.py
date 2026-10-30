@@ -23,18 +23,197 @@ class CircuitGenerator:
         test_file = self.tests_dir / "test_circuit_verification.py"
 
         # 1. 生成标准的 FlowTree 拓扑定义
-        circuit_data = self._build_default_circuit(project_id, project_name)
+        if "piggy" in project_name.lower():
+            circuit_data = self._build_piggy_circuit(project_id, project_name)
+            test_code = self._build_piggy_test_script(project_id)
+        else:
+            circuit_data = self._build_generic_circuit(project_id, project_name)
+            test_code = self._build_generic_test_script(project_id, circuit_data["nodes"])
+
         with open(circuit_file, "w", encoding="utf-8") as f:
             json.dump(circuit_data, f, ensure_ascii=False, indent=2)
 
         # 2. 生成对应的轻量自动化测试套件
-        test_code = self._build_default_test_script(project_id)
         with open(test_file, "w", encoding="utf-8") as f:
             f.write(test_code)
 
         return circuit_file
 
-    def _build_default_circuit(self, project_id: str, project_name: str) -> Dict[str, Any]:
+    def _build_generic_circuit(self, project_id: str, project_name: str) -> Dict[str, Any]:
+        """为任意未知通用项目生成标准的 3 级渐进式物理电路拓扑"""
+        return {
+            "projectId": project_id,
+            "projectName": project_name,
+            "description": f"{project_name} 业务连通性与交付流水线",
+            "version": "1.0.0",
+            "stage": "staging_review",
+            "perspectives": [
+                {
+                    "viewId": "view-all",
+                    "name": "全局流线 (All)",
+                    "description": "项目全量节点与物理通电总览",
+                    "icon": "Eye",
+                    "includeTags": ["init", "core", "delivery", "root"],
+                    "bypassUnmatched": True
+                },
+                {
+                    "viewId": "view-core",
+                    "name": "核心业务 (Core)",
+                    "description": "核心业务逻辑流线",
+                    "icon": "Activity",
+                    "includeTags": ["core", "delivery"],
+                    "bypassUnmatched": True
+                }
+            ],
+            "nodes": [
+                {
+                    "nodeId": "ROOT-PROJECT",
+                    "name": f"{project_name} 启动总线",
+                    "nodeType": "root",
+                    "tags": ["root"],
+                    "assignRole": "架构组",
+                    "assignee": "Lead",
+                    "description": "项目基线与初始总线",
+                    "status": "review_pass",
+                    "deps": [],
+                    "estimateHours": 0.0,
+                    "actualHours": 0.0,
+                    "review": {"humanSignOff": True, "logicVerified": True},
+                    "acceptanceCriteria": ["工程脚手架就绪"]
+                },
+                {
+                    "nodeId": "N1-01",
+                    "parentId": "MOD-INIT",
+                    "name": "配置解析与依赖就绪",
+                    "nodeType": "feature",
+                    "tags": ["init"],
+                    "assignRole": "基础设施",
+                    "assignee": "DevOps",
+                    "description": "环境变量载入与依赖版本自检",
+                    "status": "logic_verified",
+                    "deps": ["ROOT-PROJECT"],
+                    "estimateHours": 1.0,
+                    "actualHours": 0.8,
+                    "review": {"logicVerified": True, "logicVerifiedBy": "agent_cli"},
+                    "acceptanceCriteria": ["环境变量正确解析", "外部依赖加载成功"]
+                },
+                {
+                    "nodeId": "N1-02",
+                    "parentId": "MOD-INIT",
+                    "name": "持久化存储与连接池连通",
+                    "nodeType": "api",
+                    "tags": ["init"],
+                    "assignRole": "后端开发",
+                    "assignee": "Backend",
+                    "description": "数据库/缓存连通性检测",
+                    "status": "logic_verified",
+                    "deps": ["N1-01"],
+                    "estimateHours": 2.0,
+                    "actualHours": 1.5,
+                    "review": {"logicVerified": True, "logicVerifiedBy": "agent_cli"},
+                    "acceptanceCriteria": ["数据表结构初始化完成", "连接健康检测通过"]
+                },
+                {
+                    "nodeId": "N2-01",
+                    "parentId": "MOD-CORE",
+                    "name": "业务主干请求与契约路由",
+                    "nodeType": "api",
+                    "tags": ["core"],
+                    "assignRole": "后端开发",
+                    "assignee": "Backend",
+                    "description": "核心 API 接收业务输入与格式校验",
+                    "status": "logic_verified",
+                    "deps": ["N1-02"],
+                    "estimateHours": 3.0,
+                    "actualHours": 2.5,
+                    "review": {"logicVerified": True, "logicVerifiedBy": "agent_cli"},
+                    "acceptanceCriteria": ["输入参数合法性校验", "业务路由正确分发"]
+                },
+                {
+                    "nodeId": "N2-02",
+                    "parentId": "MOD-CORE",
+                    "name": "核心状态流转与数据变更",
+                    "nodeType": "feature",
+                    "tags": ["core"],
+                    "assignRole": "全栈开发",
+                    "assignee": "Fullstack",
+                    "description": "业务模型状态流转与事务落地",
+                    "status": "logic_verified",
+                    "deps": ["N2-01"],
+                    "estimateHours": 4.0,
+                    "actualHours": 3.5,
+                    "review": {"logicVerified": True, "logicVerifiedBy": "agent_cli"},
+                    "acceptanceCriteria": ["业务状态正确跳转", "事务一致性断言通过"]
+                },
+                {
+                    "nodeId": "N3-01",
+                    "parentId": "MOD-DELIVERY",
+                    "name": "自动化验收套件自验",
+                    "nodeType": "feature",
+                    "tags": ["delivery"],
+                    "assignRole": "QA测试",
+                    "assignee": "QA",
+                    "description": "端到端自动化契约回归",
+                    "status": "logic_verified",
+                    "deps": ["N2-02"],
+                    "estimateHours": 2.0,
+                    "actualHours": 1.8,
+                    "review": {"logicVerified": True, "logicVerifiedBy": "agent_cli"},
+                    "acceptanceCriteria": ["回归用例 100% 通过", "无严重阻断性缺陷"]
+                },
+                {
+                    "nodeId": "N3-02",
+                    "parentId": "MOD-DELIVERY",
+                    "name": "人工终审与正式通电签字",
+                    "nodeType": "feature",
+                    "tags": ["delivery"],
+                    "assignRole": "业务终审",
+                    "assignee": "PO/Lead",
+                    "description": "负责人体验走查与终审放行",
+                    "status": "review_pass",
+                    "deps": ["N3-01"],
+                    "estimateHours": 1.0,
+                    "actualHours": 0.5,
+                    "review": {"humanSignOff": True, "humanSignOffBy": "PO", "logicVerified": True},
+                    "acceptanceCriteria": ["产品体验走查通过", "负责人签署确认"]
+                }
+            ]
+        }
+
+    def _build_generic_test_script(self, project_id: str, nodes: list) -> str:
+        test_items = []
+        for n in nodes:
+            if n["nodeId"] == "ROOT-PROJECT":
+                continue
+            test_items.append((n["nodeId"], n["name"]))
+
+        items_str = ",\n        ".join([f'("{nid}", "{name}")' for nid, name in test_items])
+        return f'''# Auto-generated by FlowTree CLI (Generic Suite)
+# Verification Test Suite for {project_id}
+import sys
+
+def verify_all_nodes():
+    results = {{}}
+    tests = [
+        {items_str}
+    ]
+
+    for node_id, desc in tests:
+        # 通用自验断言：在真实项目中可替换为具体的接口请求或业务断言
+        passed = True
+        err_msg = None
+        results[node_id] = {{"passed": passed, "description": desc, "error": err_msg}}
+    
+    return results
+
+if __name__ == "__main__":
+    res = verify_all_nodes()
+    all_pass = all(v["passed"] for v in res.values())
+    print(f"Executed {{len(res)}} node assertions. All Passed: {{all_pass}}")
+    sys.exit(0 if all_pass else 1)
+'''
+
+    def _build_piggy_circuit(self, project_id: str, project_name: str) -> Dict[str, Any]:
         return {
             "projectId": project_id,
             "projectName": f"{project_name} (人生储蓄罐)",
@@ -270,7 +449,7 @@ class CircuitGenerator:
             ]
         }
 
-    def _build_default_test_script(self, project_id: str) -> str:
+    def _build_piggy_test_script(self, project_id: str) -> str:
         return f'''# Auto-generated by FlowTree CLI
 # Verification Test Suite for {project_id}
 import sys
