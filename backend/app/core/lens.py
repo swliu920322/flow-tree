@@ -154,13 +154,20 @@ class PerspectiveLens:
                 raw=node
             ))
 
-        # 6. 计算统计指标
+        # 6. 计算统计指标与卡点归属、模块聚合、个人供应链分析
+        matched_raw_nodes = [node_map[nid] for nid in matched_node_ids]
+        bottlenecks = CircuitEngine.analyze_bottlenecks(matched_raw_nodes)
+        module_summaries = CircuitEngine.compute_module_summaries(matched_raw_nodes)
+        personal_chains = CircuitEngine.compute_personal_supply_chains(project.nodes)
+
         stats = CanvasStats(
             totalNodes=len(canvas_nodes),
             energizedNodes=sum(1 for n in canvas_nodes if n.status == NodeStatus.REVIEW_PASS),
             blockedNodes=sum(1 for n in canvas_nodes if n.status == NodeStatus.REVIEW_REJECT),
             logicVerifiedNodes=sum(1 for n in canvas_nodes if n.status == NodeStatus.LOGIC_VERIFIED),
-            progressRate=round(passed_estimate_hours / total_estimate_hours, 2) if total_estimate_hours > 0 else 0.0
+            progressRate=round(passed_estimate_hours / total_estimate_hours, 2) if total_estimate_hours > 0 else 0.0,
+            bottlenecks=bottlenecks,
+            modules=module_summaries
         )
 
         return CanvasPayload(
@@ -170,5 +177,6 @@ class PerspectiveLens:
             activeViewName=perspective.name,
             stats=stats,
             nodes=canvas_nodes,
-            edges=edges
+            edges=edges,
+            personalSupplyChains=personal_chains
         )

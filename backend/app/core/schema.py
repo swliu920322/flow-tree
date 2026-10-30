@@ -114,12 +114,43 @@ class CanvasEdge(BaseModel):
     strokeColor: str
     isBypass: bool = False  # 是否为视角穿透虚拟线
 
+class BottleneckImpact(BaseModel):
+    blockerNodeId: str
+    blockerNodeLabel: str
+    blockerAssignee: Optional[str] = "未分配"
+    blockerRole: Optional[str] = "-"
+    status: NodeStatus
+    blockedDownstreamCount: int
+    blockedAssignees: List[str] = Field(default_factory=list)
+    blockedNodeIds: List[str] = Field(default_factory=list)
+    severity: str = "medium"  # high, medium, low
+    reason: str = ""
+
+class ModuleSummary(BaseModel):
+    moduleId: str
+    moduleName: str
+    assignees: List[str] = Field(default_factory=list)
+    assignRoles: List[str] = Field(default_factory=list)
+    totalNodes: int
+    energizedNodes: int
+    progressRate: float
+    isHealthy: bool = True
+    bottlenecksCount: int = 0
+
+class PersonalSupplyChain(BaseModel):
+    assignee: str
+    upstreamFeeders: List[Dict[str, Any]] = Field(default_factory=list)   # 上游谁在供电/我等谁
+    myNodes: List[str] = Field(default_factory=list)                     # 我的在手卡片
+    downstreamWaiters: List[Dict[str, Any]] = Field(default_factory=list)# 下游谁在等我放电
+
 class CanvasStats(BaseModel):
     totalNodes: int
     energizedNodes: int
     blockedNodes: int
     logicVerifiedNodes: int
     progressRate: float
+    bottlenecks: List[BottleneckImpact] = Field(default_factory=list)
+    modules: List[ModuleSummary] = Field(default_factory=list)
 
 class CanvasPayload(BaseModel):
     projectId: str
@@ -129,3 +160,4 @@ class CanvasPayload(BaseModel):
     stats: CanvasStats
     nodes: List[CanvasNode]
     edges: List[CanvasEdge]
+    personalSupplyChains: Dict[str, PersonalSupplyChain] = Field(default_factory=dict)

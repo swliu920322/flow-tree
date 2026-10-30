@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>FlowTree 端到端用户故事走查与电路状态板</title>
+  <title>FlowTree 树网二象性状态电路中枢 (通用引擎中间层)</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- React 18 & Babel for JSX -->
@@ -40,12 +40,12 @@
     const { useState, useEffect, useRef, useMemo, useCallback } = React;
 
     // ==========================================
-    // 故事旅程元数据字典 (E2E Storyboards & Lanes)
+    // 故事/模块旅程元数据字典 (E2E Storyboards & Lanes)
     // ==========================================
     const STORYBOARD_METADATA = {
       "STORY-1": {
         id: "STORY-1",
-        name: "🎭 故事一：打工人小李的自律逆袭记",
+        name: "模块一：打工人小李的自律逆袭记",
         subtitle: "立Flag 晨跑打卡 ➔ 10个A币秒速到账 ➔ 买顿大餐犒赏自己 (个人A分闭环)",
         color: "#06b6d4",
         tag: "个人自律",
@@ -55,7 +55,7 @@
       },
       "STORY-2": {
         id: "STORY-2",
-        name: "🎭 故事二：小情侣的甜宠互勉大作战",
+        name: "模块二：小情侣的甜宠互勉大作战",
         subtitle: "扫码绑定女友 ➔ 派发早睡任务 ➔ 拍照交作业 ➔ 女友审批发奖 ➔ 请喝奶茶核销 (伙伴B分闭环)",
         color: "#ec4899",
         tag: "情侣互勉",
@@ -65,7 +65,7 @@
       },
       "STORY-3": {
         id: "STORY-3",
-        name: "🎭 故事三：月光族抵抗奶茶诱惑存钱",
+        name: "模块三：月光族抵抗奶茶诱惑存钱",
         subtitle: "立2000元存钱梦想 ➔ 忍住不买随手记 ➔ 破功据实扣款警示 ➔ 存满买手机登记发票 (克制挑战)",
         color: "#eab308",
         tag: "克制存钱",
@@ -119,29 +119,31 @@
       if (STORYBOARD_METADATA[laneId]) return STORYBOARD_METADATA[laneId];
       return {
         id: laneId,
-        name: laneId ? `旅程故事：${laneId}` : "端到端业务主链路",
-        subtitle: "端测试端到端用户流转序列",
+        name: laneId ? `模块舱：${laneId}` : "核心业务主链路",
+        subtitle: "端到端业务流转序列",
         color: "#10b981",
         tag: laneId || "业务流",
-        icon: "🎬",
+        icon: "📦",
         themeBg: "rgba(16, 185, 129, 0.08)",
         themeBorder: "rgba(16, 185, 129, 0.3)"
       };
     }
 
     // ==========================================
-    // 工业级紧凑画布：用户故事自适应胶片机排布引擎
-    // (Adaptive Storyboard Flow Canvas)
+    // 自适应树网电路画布 (Tree + Circuit Canvas)
     // ==========================================
     function AdaptiveCircuitCanvas({
       nodes,
       edges,
+      modules,
       onNodeSelect,
       selectedNodeId,
       assigneeFilter,
       riskOnlyFilter,
       focusNodeId,
-      onResetView
+      collapsedModules,
+      onToggleModuleCollapse,
+      highlightNodeIds
     }) {
       const containerRef = useRef(null);
 
@@ -161,7 +163,7 @@
 
       const draggingNodeRef = useRef(null);
 
-      // 自适应多故事排布计算
+      // 自适应多模块排布计算 (支持模块折叠)
       useEffect(() => {
         if (!nodes || nodes.length === 0) {
           setNodePositions({});
@@ -169,7 +171,6 @@
           return;
         }
 
-        // 1. 聚类分组 (保留原有顺序)
         const laneMap = {};
         const laneOrder = [];
 
@@ -189,7 +190,7 @@
         const cardHeight = 125;
         const gapX = 75;
         const gapY = 55;
-        const maxCols = 4; // 一行最多排 4 个步骤，超出自动折行，绝不无限延展横向画布
+        const maxCols = 4;
 
         let currentY = 80;
 
@@ -197,49 +198,64 @@
           const lNodes = laneMap[lId];
           const startX = 60;
           const trackStartY = currentY;
+          const isCollapsed = collapsedModules.has(lId);
 
-          const numNodes = lNodes.length;
-          const totalRows = Math.ceil(numNodes / maxCols);
-          const colsInFirstRow = Math.min(numNodes, maxCols);
-
-          const trackWidth = Math.max(380, colsInFirstRow * cardWidth + (colsInFirstRow - 1) * gapX + 60);
-          const trackHeight = totalRows * cardHeight + (totalRows - 1) * gapY + 70;
-
-          newBoxes[lId] = {
-            x: startX - 25,
-            y: trackStartY - 45,
-            width: trackWidth,
-            height: trackHeight,
-            nodeCount: numNodes
-          };
-
-          lNodes.forEach((node, idx) => {
-            const row = Math.floor(idx / maxCols);
-            const col = idx % maxCols;
-
-            const posX = startX + col * (cardWidth + gapX);
-            const posY = trackStartY + row * (cardHeight + gapY);
-
-            newPos[node.id] = {
-              x: posX,
-              y: posY,
-              width: cardWidth,
-              height: cardHeight,
-              row,
-              col,
-              laneId: lId
+          if (isCollapsed) {
+            // 模块折叠状态：缩减为一个高度仅 70px 的紧凑胶囊卡片
+            newBoxes[lId] = {
+              x: startX - 25,
+              y: trackStartY - 45,
+              width: 720,
+              height: 75,
+              nodeCount: lNodes.length,
+              isCollapsed: true
             };
-          });
+            currentY += 105;
+          } else {
+            // 模块展开状态：完整显示内部节点与连线
+            const numNodes = lNodes.length;
+            const totalRows = Math.ceil(numNodes / maxCols);
+            const colsInFirstRow = Math.min(numNodes, maxCols);
 
-          // 下一个故事的纵向间距
-          currentY += trackHeight + 60;
+            const trackWidth = Math.max(480, colsInFirstRow * cardWidth + (colsInFirstRow - 1) * gapX + 60);
+            const trackHeight = totalRows * cardHeight + (totalRows - 1) * gapY + 70;
+
+            newBoxes[lId] = {
+              x: startX - 25,
+              y: trackStartY - 45,
+              width: trackWidth,
+              height: trackHeight,
+              nodeCount: numNodes,
+              isCollapsed: false
+            };
+
+            lNodes.forEach((node, idx) => {
+              const row = Math.floor(idx / maxCols);
+              const col = idx % maxCols;
+
+              const posX = startX + col * (cardWidth + gapX);
+              const posY = trackStartY + row * (cardHeight + gapY);
+
+              newPos[node.id] = {
+                x: posX,
+                y: posY,
+                width: cardWidth,
+                height: cardHeight,
+                row,
+                col,
+                laneId: lId
+              };
+            });
+
+            currentY += trackHeight + 60;
+          }
         });
 
         setNodePositions(newPos);
         setLaneBoxes(newBoxes);
-      }, [nodes]);
+      }, [nodes, collapsedModules]);
 
-      // 聚焦节点平移 (自动预留右侧 460px 抽屉空间，居中在剩余可视区黄金分割点)
+      // 聚焦节点平移 (自动预留右侧 460px 抽屉空间)
       const focusOnNode = useCallback((nodeId) => {
         const targetPos = nodePositionsRef.current[nodeId];
         const container = containerRef.current;
@@ -364,7 +380,7 @@
             isPanning ? 'cursor-grabbing' : 'cursor-grab'
           }`}
         >
-          {/* 画布缩放控制条 */}
+          {/* 画布控制条 */}
           <div className="absolute bottom-6 left-6 z-20 flex items-center gap-1.5 bg-slate-900/90 border border-slate-700/80 rounded-xl p-1.5 shadow-2xl backdrop-blur-md">
             <button onClick={zoomIn} title="放大" className="w-8 h-8 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-300 hover:text-white font-mono text-base font-bold">＋</button>
             <button onClick={zoomOut} title="缩小" className="w-8 h-8 rounded-lg hover:bg-slate-800 flex items-center justify-center text-slate-300 hover:text-white font-mono text-base font-bold">－</button>
@@ -384,15 +400,18 @@
               pointerEvents: 'none'
             }}
           >
-            {/* 用户故事舱背景卡片与标题 */}
+            {/* 模块级边界卡片与责任人列表 */}
             {Object.keys(laneBoxes).map(lId => {
               const meta = getStoryMeta(lId);
               const box = laneBoxes[lId];
               if (!box) return null;
 
+              const modSummary = modules?.find(m => m.moduleId === lId);
+              const isCollapsed = box.isCollapsed;
+
               return (
                 <div key={lId}>
-                  {/* 故事旅程半透明底衬卡片 */}
+                  {/* 模块半透明外框 */}
                   <div
                     style={{
                       position: "absolute",
@@ -407,32 +426,54 @@
                     className="rounded-2xl border backdrop-blur-sm -z-10 transition-all duration-300 shadow-lg"
                   />
 
-                  {/* 故事舱标题栏 */}
+                  {/* 模块头部信息与折叠控制 */}
                   <div
                     style={{
                       position: "absolute",
                       left: `${box.x + 20}px`,
                       top: `${box.y + 14}px`,
-                      pointerEvents: "none"
+                      pointerEvents: "auto"
                     }}
-                    className="flex items-center gap-3 z-0"
+                    className="flex items-center gap-3 z-10"
                   >
+                    <button
+                      onClick={() => onToggleModuleCollapse(lId)}
+                      className="px-2 py-0.5 rounded bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-[11px] font-mono border border-slate-700 cursor-pointer shadow-sm"
+                      title={isCollapsed ? "点击展开模块内部任务" : "点击折叠模块"}
+                    >
+                      {isCollapsed ? "+ 展开" : "- 折叠"}
+                    </button>
+
                     <span className="text-base">{meta.icon}</span>
                     <h3 className="font-bold text-sm tracking-wide text-slate-100 font-sans">
                       {meta.name}
                     </h3>
+
+                    {/* 模块负责人列表 (第一类公民展现) */}
+                    {modSummary?.assignees && modSummary.assignees.length > 0 && (
+                      <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-900/90 border border-slate-700 text-[11px] text-slate-300">
+                        <span className="text-slate-400">👥 负责人:</span>
+                        <span className="font-medium text-emerald-400">
+                          {modSummary.assignees.join(", ")}
+                        </span>
+                      </div>
+                    )}
+
                     <span className="text-[10px] px-2 py-0.5 rounded font-mono bg-slate-900/90 text-slate-300 border border-slate-700">
-                      {meta.tag}
+                      {box.nodeCount} 项任务
                     </span>
-                    <span className="text-[11px] text-slate-400 font-normal hidden md:inline truncate max-w-[500px]">
-                      {meta.subtitle}
-                    </span>
+
+                    {modSummary && (
+                      <span className="text-[11px] font-mono text-emerald-400 font-bold">
+                        {Math.round(modSummary.progressRate * 100)}% 导通
+                      </span>
+                    )}
                   </div>
                 </div>
               );
             })}
 
-            {/* SVG 导线层 (支持同行动画电流与换行 S 型弯曲导线) */}
+            {/* SVG 导线层 (折叠模块不显示连线) */}
             <svg
               className="absolute pointer-events-none overflow-visible"
               style={{ width: '1px', height: '1px', left: 0, top: 0 }}
@@ -463,7 +504,6 @@
                 let d = "";
 
                 if (isSameRow) {
-                  // 同行：平直贝塞尔电流线
                   const startX = sPos.x + (sPos.width || 270);
                   const startY = sPos.y + (sPos.height || 125) / 2;
                   const endX = tPos.x;
@@ -471,13 +511,12 @@
                   const deltaX = Math.max(25, (endX - startX) / 2);
                   d = `M ${startX} ${startY} C ${startX + deltaX} ${startY}, ${endX - deltaX} ${endY}, ${endX} ${endY}`;
                 } else {
-                  // 跨行折返：S 型圆角转弯
                   const startX = sPos.x + (sPos.width || 270) / 2;
                   const startY = sPos.y + (sPos.height || 125);
                   const endX = tPos.x + (tPos.width || 270) / 2;
                   const endY = tPos.y;
                   const midY = (startY + endY) / 2;
-                  d = `M ${startX} ${startY} C ${startX} ${midY}, ${endX} ${midY}, ${endX} ${endY}`;
+                  d = `M ${startX} ${startY} C ${startX + midY}, ${endX} ${midY}, ${endX} ${endY}`;
                 }
 
                 const isEnergized = e.circuitState === "energized";
@@ -487,7 +526,10 @@
                 const tNode = nodes.find(n => n.id === e.target);
 
                 let edgeOpacity = 1.0;
-                if (assigneeFilter !== "all") {
+                if (highlightNodeIds && highlightNodeIds.length > 0) {
+                  const isInHighlight = highlightNodeIds.includes(e.source) && highlightNodeIds.includes(e.target);
+                  edgeOpacity = isInHighlight ? 1.0 : 0.1;
+                } else if (assigneeFilter !== "all") {
                   const sMatch = sNode?.raw?.assignee?.includes(assigneeFilter);
                   const tMatch = tNode?.raw?.assignee?.includes(assigneeFilter);
                   if (!sMatch && !tMatch) edgeOpacity = 0.15;
@@ -532,10 +574,10 @@
               })}
             </svg>
 
-            {/* 紧凑故事步骤卡片层 (270x125 比例，清晰直观的用户视点) */}
+            {/* 任务节点卡片 (折叠模块下的节点隐藏) */}
             {nodes.map(node => {
               const pos = nodePositions[node.id];
-              if (!pos) return null;
+              if (!pos) return null; // 被折叠的模块节点 pos 为空
 
               const isSelected = selectedNodeId === node.id;
               const bulb = node.bulbState;
@@ -543,7 +585,13 @@
 
               let nodeOpacity = 1.0;
               let isFocus = true;
-              if (assigneeFilter !== "all" && !isProxySlot) {
+
+              if (highlightNodeIds && highlightNodeIds.length > 0) {
+                if (!highlightNodeIds.includes(node.id)) {
+                  nodeOpacity = 0.2;
+                  isFocus = false;
+                }
+              } else if (assigneeFilter !== "all" && !isProxySlot) {
                 const match = node.raw?.assignee?.includes(assigneeFilter);
                 if (!match) {
                   nodeOpacity = 0.25;
@@ -584,7 +632,6 @@
                 statusLabel = "缺陷阻断";
               }
 
-              // 提取用户故事简要说明 (第一句)
               const desc = node.raw?.description || "";
               const cleanDesc = desc.replace("【用户视点】", "").trim();
 
@@ -610,7 +657,6 @@
                     isSelected ? "ring-2 ring-emerald-400 scale-[1.03] z-10" : isFocus ? "hover:border-slate-500 hover:scale-[1.01]" : ""
                   }`}
                 >
-                  {/* 卡片头部：状态灯泡 + 标题 + 步骤ID */}
                   <div className="flex items-start justify-between gap-1.5">
                     <div className="flex items-center gap-2 overflow-hidden flex-1">
                       <div className={`w-3.5 h-3.5 rounded-full shrink-0 ${bulbBg} ${bulbGlowClass}`} />
@@ -623,12 +669,10 @@
                     </span>
                   </div>
 
-                  {/* 用户故事体验摘要 */}
                   <p className="text-[11px] text-slate-400 line-clamp-1 leading-snug">
                     {cleanDesc || "端到端交互走查节点"}
                   </p>
 
-                  {/* 状态与时间 */}
                   <div className="text-[10px] font-mono text-slate-400 flex items-center justify-between">
                     <span className={isProxySlot ? "text-sky-300 font-bold" : bulb === "green_on" ? "text-emerald-400 font-medium" : bulb === "blue_waiting" ? "text-sky-400 font-medium" : ""}>
                       {statusLabel}
@@ -636,13 +680,14 @@
                     <span className="text-slate-500">{node.dataOverlay.hours}</span>
                   </div>
 
-                  {/* 底部角色与契约标记 */}
                   <div className="flex items-center justify-between text-[11px] pt-1.5 border-t border-slate-800/80">
                     <div className="flex items-center gap-1.5 text-slate-400">
                       <span className="w-4 h-4 rounded-full bg-slate-800 flex items-center justify-center text-[9px] text-slate-300 font-bold">
                         {node.dataOverlay.assignee ? node.dataOverlay.assignee[0] : "?"}
                       </span>
-                      <span className="truncate max-w-[110px] text-[10px]">{node.dataOverlay.assignee || "未分配"}</span>
+                      <span className="truncate max-w-[110px] text-[10px] font-medium text-slate-300">
+                        {node.dataOverlay.assignee || "未分配"}
+                      </span>
                     </div>
 
                     <div className="flex items-center gap-1">
@@ -665,7 +710,7 @@
     }
 
     // ==========================================
-    // 平台层主应用 App (带有管理大盘罗盘)
+    // 平台层主应用 App (通用引擎控制中枢)
     // ==========================================
     function App() {
       const [projectList, setProjectList] = useState([]);
@@ -681,27 +726,40 @@
       const [riskOnlyFilter, setRiskOnlyFilter] = useState(false);
       const [isSimulating, setIsSimulating] = useState(false);
 
-      // 计算各故事大盘点亮指标
-      const storyOverview = useMemo(() => {
-        if (!canvasData?.nodes) return {};
-        const result = {};
+      // 模块折叠状态集合
+      const [collapsedModules, setCollapsedModules] = useState(new Set());
+      // 卡点归属面板开关
+      const [bottlenecksModalOpen, setBottlenecksModalOpen] = useState(false);
 
-        // 预置故事
-        ["STORY-1", "STORY-2", "STORY-3"].forEach(sId => {
-          result[sId] = { total: 0, pass: 0, waiting: 0, deving: 0 };
+      const toggleModuleCollapse = (moduleId) => {
+        setCollapsedModules(prev => {
+          const next = new Set(prev);
+          if (next.has(moduleId)) next.delete(moduleId);
+          else next.add(moduleId);
+          return next;
         });
+      };
 
-        canvasData.nodes.forEach(n => {
-          const sId = n.raw?.parentId || "OTHER";
-          if (!result[sId]) result[sId] = { total: 0, pass: 0, waiting: 0, deving: 0 };
-          result[sId].total += 1;
-          if (n.status === "review_pass") result[sId].pass += 1;
-          else if (n.status === "logic_verified") result[sId].waiting += 1;
-          else if (n.status === "deving") result[sId].deving += 1;
-        });
-
-        return result;
+      // 提取全部可用参与人员列表
+      const allAssignees = useMemo(() => {
+        if (!canvasData?.personalSupplyChains) return [];
+        return Object.keys(canvasData.personalSupplyChains);
       }, [canvasData]);
+
+      // 当前被聚焦人员的上下游链路
+      const currentSupplyChain = useMemo(() => {
+        if (assigneeFilter === "all" || !canvasData?.personalSupplyChains) return null;
+        return canvasData.personalSupplyChains[assigneeFilter] || null;
+      }, [assigneeFilter, canvasData]);
+
+      // 当前供应链相关的所有高亮节点
+      const highlightNodeIds = useMemo(() => {
+        if (!currentSupplyChain) return null;
+        const ids = [...currentSupplyChain.myNodes];
+        currentSupplyChain.upstreamFeeders.forEach(u => ids.push(u.nodeId));
+        currentSupplyChain.downstreamWaiters.forEach(d => ids.push(d.nodeId));
+        return ids;
+      }, [currentSupplyChain]);
 
       useEffect(() => {
         fetch("/api/projects")
@@ -746,6 +804,8 @@
         setCurrentProjectId(nextId);
         setActiveViewId("view-all");
         setSelectedNode(null);
+        setAssigneeFilter("all");
+        setCollapsedModules(new Set());
         setLoading(true);
         fetchProjectData(nextId, "view-all");
       };
@@ -782,13 +842,23 @@
         await fetchProjectData(currentProjectId, activeViewId);
       };
 
+      const handleLocateNode = (nodeId) => {
+        setFocusNodeId(nodeId);
+        const target = canvasData?.nodes.find(n => n.id === nodeId);
+        if (target) setSelectedNode(target.raw);
+        setBottlenecksModalOpen(false);
+      };
+
       if (loading) {
         return (
           <div className="h-screen flex items-center justify-center bg-slate-950 text-emerald-400 font-mono text-lg">
-            ⚡ 正在规划端到端用户故事走查板...
+            ⚡ 正在规划树网二象性状态电路中枢...
           </div>
         );
       }
+
+      const stats = canvasData?.stats || { totalNodes: 0, energizedNodes: 0, bottlenecks: [], modules: [] };
+      const bottlenecks = stats.bottlenecks || [];
 
       return (
         <div className="flex flex-col h-screen bg-slate-950">
@@ -819,26 +889,40 @@
               </div>
             </div>
 
-            {/* 管理者视角：用户故事全景通电点亮大盘 */}
+            {/* 顶栏中心：模块组织大盘与卡点报警 */}
             <div className="flex items-center gap-3">
-              {Object.keys(storyOverview).map(sId => {
-                const meta = getStoryMeta(sId);
-                const s = storyOverview[sId];
-                if (!s || s.total === 0) return null;
-                const pct = Math.round((s.pass / s.total) * 100);
+              {/* 卡点归属报警徽章 (第一类公民) */}
+              <button
+                onClick={() => setBottlenecksModalOpen(true)}
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg border text-xs font-mono transition-all cursor-pointer shadow-sm ${
+                  bottlenecks.length > 0
+                    ? "bg-rose-950/60 border-rose-700/80 text-rose-300 hover:bg-rose-900/80 bulb-alert"
+                    : "bg-emerald-950/50 border-emerald-800 text-emerald-400"
+                }`}
+              >
+                <span>{bottlenecks.length > 0 ? "🚨" : "🛡️"}</span>
+                <span>
+                  {bottlenecks.length > 0
+                    ? `${bottlenecks.length} 处阻塞卡点 (看卡在谁那里)`
+                    : "链路畅通·无阻塞"}
+                </span>
+              </button>
 
+              {/* 模块级通电微缩条 */}
+              {stats.modules?.map(m => {
+                const meta = getStoryMeta(m.moduleId);
+                const pct = Math.round(m.progressRate * 100);
                 return (
                   <div
-                    key={sId}
+                    key={m.moduleId}
                     className="flex items-center gap-2 px-3 py-1 rounded-lg bg-slate-950 border border-slate-800 text-xs font-mono shadow-sm"
                   >
                     <span>{meta.icon}</span>
                     <span className="text-slate-400 font-sans">{meta.tag}</span>
-                    <div className="w-14 h-1.5 rounded-full bg-slate-800 overflow-hidden">
+                    <div className="w-12 h-1.5 rounded-full bg-slate-800 overflow-hidden">
                       <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${pct}%` }} />
                     </div>
                     <span className="font-bold text-emerald-400">{pct}%</span>
-                    {s.waiting > 0 && <span className="text-sky-400 font-sans text-[11px]">({s.waiting}待审)</span>}
                   </div>
                 );
               })}
@@ -857,11 +941,11 @@
             </div>
           </header>
 
-          {/* 第二栏：用户故事透镜 + 负责人筛选与风险过滤 */}
+          {/* 第二栏：业务透镜 + 责任人聚焦与风险过滤 */}
           <div className="h-12 border-b border-slate-800 px-6 flex items-center justify-between bg-slate-900/60 shrink-0 z-20">
-            {/* 左侧：用户故事透镜 */}
+            {/* 左侧：动态视角透镜 */}
             <div className="flex items-center gap-1.5 overflow-x-auto custom-scroll">
-              <span className="text-xs text-slate-500 mr-1 font-mono shrink-0">故事走查透镜:</span>
+              <span className="text-xs text-slate-500 mr-1 font-mono shrink-0">视角透镜:</span>
               {projectMeta?.perspectives.map((p) => {
                 const isActive = activeViewId === p.viewId;
                 return (
@@ -880,19 +964,21 @@
               })}
             </div>
 
-            {/* 右侧：负责人与风险过滤 */}
+            {/* 右侧：责任人聚焦与风险过滤 */}
             <div className="flex items-center gap-4 shrink-0">
               <div className="flex items-center gap-1.5 text-xs">
-                <span className="text-slate-500 font-mono">参与者聚焦:</span>
+                <span className="text-slate-500 font-mono">工位视角:</span>
                 <select
                   value={assigneeFilter}
                   onChange={(e) => setAssigneeFilter(e.target.value)}
-                  className="bg-slate-800 border border-slate-700 text-slate-200 rounded px-2.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer"
+                  className="bg-slate-800 border border-slate-700 text-slate-200 rounded px-2.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer font-medium"
                 >
-                  <option value="all">全部参与者 (全景)</option>
-                  <option value="Alice">Alice (前端体验)</option>
-                  <option value="Bob">Bob (后端分账)</option>
-                  <option value="Carol">Carol (质量门禁)</option>
+                  <option value="all">🌐 全体成员 (全景模式)</option>
+                  {allAssignees.map(a => (
+                    <option key={a} value={a}>
+                      👤 {a} 的专属工位
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -903,10 +989,81 @@
                   onChange={(e) => setRiskOnlyFilter(e.target.checked)}
                   className="rounded bg-slate-800 border-slate-700 text-emerald-500 focus:ring-0 cursor-pointer"
                 />
-                <span className="font-mono text-amber-400">只看卡点与待终审</span>
+                <span className="font-mono text-amber-400">只看卡点与待审</span>
               </label>
             </div>
           </div>
+
+          {/* 第三栏：个人工位供应链上下文条 (当选中具体人员时浮现) */}
+          {currentSupplyChain && (
+            <div className="h-10 border-b border-indigo-900/60 bg-indigo-950/40 px-6 flex items-center justify-between text-xs font-mono shrink-0 z-20 animate-in slide-in-from-top-2">
+              <div className="flex items-center gap-3">
+                <span className="font-bold text-indigo-300 flex items-center gap-1">
+                  <span>🎯</span>
+                  <span>【{assigneeFilter}】在全局链路中的工位:</span>
+                </span>
+
+                {/* 上游谁卡我 */}
+                <div className="flex items-center gap-1.5 text-slate-300">
+                  <span className="text-slate-500">⬅️ 上游输入 (我等谁):</span>
+                  {currentSupplyChain.upstreamFeeders.length === 0 ? (
+                    <span className="text-emerald-400">无需等待 (可独立开工)</span>
+                  ) : (
+                    currentSupplyChain.upstreamFeeders.map((u, i) => (
+                      <span
+                        key={i}
+                        onClick={() => handleLocateNode(u.nodeId)}
+                        className={`px-1.5 py-0.5 rounded text-[10px] cursor-pointer border ${
+                          u.isReady
+                            ? "bg-emerald-950 text-emerald-300 border-emerald-800"
+                            : "bg-amber-950 text-amber-300 border-amber-800"
+                        }`}
+                        title={`等待 ${u.assignee} 的 ${u.label} (${u.status})`}
+                      >
+                        {u.assignee}: {u.nodeId} {u.isReady ? "✓" : "⏳"}
+                      </span>
+                    ))
+                  )}
+                </div>
+
+                {/* 我的在手任务 */}
+                <div className="flex items-center gap-1.5 text-slate-300 pl-3 border-l border-indigo-900">
+                  <span className="text-slate-500">⭐ 在手任务:</span>
+                  <span className="text-sky-300 font-bold">{currentSupplyChain.myNodes.length} 项</span>
+                </div>
+
+                {/* 下游谁等我 */}
+                <div className="flex items-center gap-1.5 text-slate-300 pl-3 border-l border-indigo-900">
+                  <span className="text-slate-500">➡️ 下游交付 (谁等我):</span>
+                  {currentSupplyChain.downstreamWaiters.length === 0 ? (
+                    <span className="text-slate-400">末端交付 (无下游阻塞)</span>
+                  ) : (
+                    currentSupplyChain.downstreamWaiters.map((d, i) => (
+                      <span
+                        key={i}
+                        onClick={() => handleLocateNode(d.nodeId)}
+                        className={`px-1.5 py-0.5 rounded text-[10px] cursor-pointer border ${
+                          d.isBlocked
+                            ? "bg-rose-950 text-rose-300 border-rose-800"
+                            : "bg-slate-800 text-slate-300 border-slate-700"
+                        }`}
+                        title={`等待我放电给 ${d.assignee} 的 ${d.label}`}
+                      >
+                        {d.assignee}: {d.nodeId} {d.isBlocked ? "🚨等待我" : "✓"}
+                      </span>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              <button
+                onClick={() => setAssigneeFilter("all")}
+                className="text-slate-400 hover:text-white text-xs underline"
+              >
+                退出工位视点
+              </button>
+            </div>
+          )}
 
           {/* 主工作区 */}
           <div className="flex-1 relative overflow-hidden flex z-10">
@@ -914,11 +1071,15 @@
               <AdaptiveCircuitCanvas
                 nodes={canvasData?.nodes || []}
                 edges={canvasData?.edges || []}
+                modules={stats.modules || []}
                 selectedNodeId={selectedNode?.nodeId}
                 onNodeSelect={(raw) => setSelectedNode(raw)}
                 assigneeFilter={assigneeFilter}
                 riskOnlyFilter={riskOnlyFilter}
                 focusNodeId={focusNodeId}
+                collapsedModules={collapsedModules}
+                onToggleModuleCollapse={toggleModuleCollapse}
+                highlightNodeIds={highlightNodeIds}
               />
             </div>
 
@@ -1046,6 +1207,94 @@
               </div>
             )}
           </div>
+
+          {/* 全局卡点责任归属追查面板 (Modal) */}
+          {bottlenecksModalOpen && (
+            <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-6 animate-in fade-in duration-200">
+              <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-3xl max-h-[80vh] flex flex-col shadow-2xl overflow-hidden">
+                <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-xl">🚨</span>
+                    <div>
+                      <h2 className="font-bold text-base text-white">全链路阻塞卡点与责任人追踪</h2>
+                      <p className="text-xs text-slate-400 mt-0.5">精准追踪到底卡在谁手里、卡住了下游哪些人、如何尽快疏通</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setBottlenecksModalOpen(false)}
+                    className="text-slate-400 hover:text-white text-lg font-mono p-1 rounded hover:bg-slate-800"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div className="p-6 overflow-y-auto space-y-4 custom-scroll">
+                  {bottlenecks.length === 0 ? (
+                    <div className="text-center py-12 text-slate-500 font-mono">
+                      🎉 当前项目链路 100% 畅通，无任何阻断卡点！
+                    </div>
+                  ) : (
+                    bottlenecks.map((b, idx) => (
+                      <div
+                        key={idx}
+                        className="bg-slate-950 border border-slate-800 rounded-xl p-4.5 hover:border-slate-700 transition-all space-y-3"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="px-2 py-0.5 rounded bg-rose-950 text-rose-400 border border-rose-800 font-mono text-xs font-bold">
+                              {b.blockerNodeId}
+                            </span>
+                            <h3 className="font-bold text-sm text-slate-100">{b.blockerNodeLabel}</h3>
+                          </div>
+                          <span className={`text-[11px] font-mono px-2 py-0.5 rounded font-bold ${
+                            b.severity === "high" ? "bg-rose-900/60 text-rose-300 border border-rose-700" : "bg-amber-900/60 text-amber-300 border border-amber-700"
+                          }`}>
+                            {b.severity === "high" ? "严重阻塞" : "关注卡点"}
+                          </span>
+                        </div>
+
+                        {/* 责任人与阻断受害者 */}
+                        <div className="grid grid-cols-2 gap-3 text-xs bg-slate-900/60 p-3 rounded-lg border border-slate-800/80 font-mono">
+                          <div>
+                            <span className="text-slate-400">👤 当前卡在: </span>
+                            <span className="font-bold text-rose-400">{b.blockerAssignee}</span>
+                            <span className="text-slate-500 ml-1">({b.blockerRole})</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-400">⚠️ 正在阻断下游: </span>
+                            <span className="font-bold text-amber-300">{b.blockedDownstreamCount} 个任务</span>
+                          </div>
+                          <div className="col-span-2 flex items-center gap-1.5 flex-wrap">
+                            <span className="text-slate-400">⏳ 受阻人员: </span>
+                            {b.blockedAssignees.length === 0 ? (
+                              <span className="text-slate-500">无其他跨人依赖</span>
+                            ) : (
+                              b.blockedAssignees.map((a, i) => (
+                                <span key={i} className="px-1.5 py-0.2 rounded bg-slate-800 text-sky-300 border border-slate-700 text-[11px]">
+                                  {a}
+                                </span>
+                              ))
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between text-xs pt-1">
+                          <span className="text-slate-400 text-[11px]">{b.reason}</span>
+                          <button
+                            onClick={() => handleLocateNode(b.blockerNodeId)}
+                            className="px-3 py-1 rounded bg-slate-800 hover:bg-slate-700 text-emerald-400 hover:text-emerald-300 font-mono text-xs border border-slate-700 transition-all flex items-center gap-1"
+                          >
+                            <span>🎯</span>
+                            <span>在画布中定位卡点</span>
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       );
     }
