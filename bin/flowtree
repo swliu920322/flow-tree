@@ -1,0 +1,13 @@
+#!/usr/bin/env python3
+import sys
+from pathlib import Path
+
+# 确保 CLI 能够找到 virtual-manage 内部模块
+current_dir = Path(__file__).resolve().parent.parent
+if str(current_dir) not in sys.path:
+    sys.path.insert(0, str(current_dir))
+
+from cli.main import main
+
+if __name__ == "__main__":
+    main()

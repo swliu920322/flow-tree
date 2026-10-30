@@ -91,7 +91,19 @@ manager = ConnectionManager()
 def list_projects():
     """获取系统内管理的所有项目列表"""
     projects = []
+    seen_ids = set()
+    for pid, proj in PROJECT_STORE.items():
+        projects.append({
+            "projectId": proj.projectId,
+            "projectName": proj.projectName,
+            "description": proj.description,
+            "nodeCount": len(proj.nodes),
+            "stage": proj.stage
+        })
+        seen_ids.add(pid)
     for pid, filename in PROJECT_FILES.items():
+        if pid in seen_ids:
+            continue
         p_path = DATA_DIR / filename
         if p_path.exists():
             with open(p_path, "r", encoding="utf-8") as f:
@@ -103,6 +115,7 @@ def list_projects():
                     "nodeCount": len(data.get("nodes", [])),
                     "stage": data.get("stage", "dev")
                 })
+                seen_ids.add(pid)
     return projects
 
 @app.get("/api/projects/{project_id}")
@@ -122,6 +135,20 @@ def get_canvas_projection(project_id: str, view_id: str = "view-all"):
     """根据视角获取确定性的拓扑连通数据包"""
     proj = load_project_by_id(project_id)
     return PerspectiveLens.project(proj, view_id)
+
+@app.post("/api/projects/sync")
+async def sync_project(project: ProjectModel):
+    """CLI 遥测/同步上报接口：注册或全量更新项目完整拓扑"""
+    PROJECT_STORE[project.projectId] = project
+    PROJECT_FILES[project.projectId] = f"{project.projectId}.json"
+    save_project_by_id(project.projectId, project)
+    await manager.broadcast({
+        "event": "PROJECT_SYNCED",
+        "projectId": project.projectId,
+        "projectName": project.projectName,
+        "nodeCount": len(project.nodes)
+    })
+    return {"success": True, "projectId": project.projectId, "nodeCount": len(project.nodes)}
 
 class PatchStatusPayload(BaseModel):
     status: NodeStatus
