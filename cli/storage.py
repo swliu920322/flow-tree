@@ -56,6 +56,12 @@ class StorageManager:
                 FOREIGN KEY (run_id) REFERENCES flowtree_runs(run_id)
             )
             """)
+            # 迁移: 旧库的记录没有证据来源, 一律标为 legacy_unverified, 不得作为当前通过
+            cols = {r[1] for r in cursor.execute("PRAGMA table_info(flowtree_runs)").fetchall()}
+            if "evidence_kind" not in cols:
+                cursor.execute(
+                    "ALTER TABLE flowtree_runs ADD COLUMN evidence_kind TEXT NOT NULL DEFAULT 'legacy_unverified'"
+                )
             conn.commit()
 
     def record_run(self, 
@@ -68,7 +74,15 @@ class StorageManager:
                    duration_ms: float = 0.0) -> str:
         """记录一次巡检批次及其下各节点的执行明细"""
         run_id = f"run_{uuid.uuid4().hex[:12]}"
-        status = "ALL_PASS" if len(blocked_nodes) == 0 else "HAS_BLOCKED"
+        # 零个被测节点不是"全部通过"; 没有失败也不能推断通过
+        if total_nodes == 0:
+            status = "NO_EVIDENCE"
+        elif blocked_nodes:
+            status = "HAS_BLOCKED"
+        elif len(passed_nodes) == total_nodes:
+            status = "ALL_PASS"
+        else:
+            status = "INCOMPLETE"
 
         with self._get_connection() as conn:
             cursor = conn.cursor()
@@ -100,7 +114,7 @@ class StorageManager:
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
-            SELECT run_id, project_name, total_nodes, passed_nodes, blocked_nodes, status, created_at
+            SELECT run_id, project_name, total_nodes, passed_nodes, blocked_nodes, status, evidence_kind, created_at
             FROM flowtree_runs
             ORDER BY created_at DESC
             LIMIT ?

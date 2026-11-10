@@ -1,4 +1,5 @@
 import os
+import re
 import json
 from pathlib import Path
 from typing import Dict, Any, List
@@ -32,12 +33,20 @@ PROJECT_FILES = {
     "proj-mall-001": "demo_project.json"
 }
 
+# 仓库自带的演示数据。其"人工终审"/"模拟 Agent"按钮只服务于演示, 不产生真实验收事实。
+# 其他项目 (例如 CLI 同步上来的) 在身份机制建成前不接受通过 PATCH 写入人工签字。
+DEMO_PROJECT_IDS = frozenset(PROJECT_FILES)
+
+PROJECT_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,127}$")
+
 def get_project_path(project_id: str) -> Path:
+    # 未知项目不再回退到演示数据: 否则对任意 ID 的写操作会落到演示文件上
+    if not PROJECT_ID_RE.match(project_id) and project_id not in PROJECT_FILES:
+        raise HTTPException(status_code=404, detail=f"Project {project_id} not found")
     filename = PROJECT_FILES.get(project_id, f"{project_id}.json")
     path = DATA_DIR / filename
     if not path.exists():
-        # 兼容当前项目默认
-        path = DATA_DIR / "life_piggy_bank.json"
+        raise HTTPException(status_code=404, detail=f"Project {project_id} not found")
     return path
 
 PROJECT_STORE: Dict[str, ProjectModel] = {}
@@ -138,7 +147,22 @@ def get_canvas_projection(project_id: str, view_id: str = "view-all"):
 
 @app.post("/api/projects/sync")
 async def sync_project(project: ProjectModel):
-    """CLI 遥测/同步上报接口：注册或全量更新项目完整拓扑"""
+    """CLI 遥测/同步上报接口：注册或全量更新项目完整拓扑。
+    同步内容不是人工操作证明: 内置演示 ID 为保留 ID 不可覆盖; 携带人工签字/终审通过的数据一律拒绝。"""
+    if project.projectId in DEMO_PROJECT_IDS:
+        raise HTTPException(status_code=409, detail=f"{project.projectId} is a reserved bundled demo project id")
+    if not PROJECT_ID_RE.match(project.projectId):
+        raise HTTPException(status_code=422, detail="projectId must match " + PROJECT_ID_RE.pattern)
+    forged = [
+        n.nodeId for n in project.nodes
+        if n.status == NodeStatus.REVIEW_PASS
+        or n.review.humanSignOff or n.review.humanSignOffBy or n.review.humanSignOffAt
+    ]
+    if forged:
+        raise HTTPException(
+            status_code=422,
+            detail=f"sync cannot carry human sign-off or review_pass (authenticated sign-off is not implemented); offending nodes: {forged}",
+        )
     PROJECT_STORE[project.projectId] = project
     PROJECT_FILES[project.projectId] = f"{project.projectId}.json"
     save_project_by_id(project.projectId, project)
@@ -159,6 +183,13 @@ class PatchStatusPayload(BaseModel):
 @app.patch("/api/projects/{project_id}/nodes/{node_id}/status")
 async def patch_node_status(project_id: str, node_id: str, payload: PatchStatusPayload):
     """外部 Agent / 测试平台 / 人工 提交标准状态更新"""
+    if payload.status == NodeStatus.REVIEW_PASS and project_id not in DEMO_PROJECT_IDS:
+        # 状态自报与 source 字符串都不是人工操作证明
+        raise HTTPException(
+            status_code=403,
+            detail="review_pass requires an authenticated human sign-off, which is not implemented; PATCH cannot record it",
+        )
+
     proj = load_project_by_id(project_id)
     target_node = next((n for n in proj.nodes if n.nodeId == node_id), None)
     if not target_node:
@@ -172,10 +203,11 @@ async def patch_node_status(project_id: str, node_id: str, payload: PatchStatusP
 
     if payload.status == NodeStatus.LOGIC_VERIFIED:
         target_node.review.logicVerified = True
-        target_node.review.logicVerifiedBy = payload.source
+        target_node.review.logicVerifiedBy = f"self-reported:{payload.source}"
     elif payload.status == NodeStatus.REVIEW_PASS:
+        # 仅演示项目可到达此处
         target_node.review.humanSignOff = True
-        target_node.review.humanSignOffBy = "human_reviewer"
+        target_node.review.humanSignOffBy = "demo-unauthenticated"
 
     save_project_by_id(project_id, proj)
 
@@ -192,7 +224,9 @@ async def patch_node_status(project_id: str, node_id: str, payload: PatchStatusP
 @app.post("/api/projects/{project_id}/simulate-agent")
 @app.post("/api/projects/{project_id}/simulate/run-agent-tests")
 async def simulate_agent_flow(project_id: str):
-    """【模拟执行】：根据项目特征自动模拟外部跑通与点亮流转"""
+    """【模拟执行】：仅限演示项目; 结果是脚本化的演示数据, 不是验收证据"""
+    if project_id not in DEMO_PROJECT_IDS:
+        raise HTTPException(status_code=403, detail="simulation is limited to bundled demo projects")
     proj = load_project_by_id(project_id)
 
     if project_id == "proj-life-piggy-bank":
@@ -244,7 +278,7 @@ async def simulate_agent_flow(project_id: str):
         "projectId": project_id,
         "message": "全链路状态推进完成！"
     })
-    return {"message": "Simulated agent flow executed"}
+    return {"message": "Simulated agent flow executed", "demo": True}
 
 @app.post("/api/projects/{project_id}/reset")
 async def reset_demo(project_id: str):

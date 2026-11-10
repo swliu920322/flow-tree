@@ -1,95 +1,34 @@
-import importlib.util
 import json
-import os
-import sys
-import time
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any, Dict
 
-from cli.storage import StorageManager
+
+class VerificationNotConfigured(RuntimeError):
+    """旧入口没有可信的验收依据。"""
+
 
 class CircuitRunner:
-    """负责执行 .flowtree/tests/ 自动化验收套件，并回填电路节点状态与持久化数据指标"""
+    """旧电路入口的兼容外壳。
+
+    原实现动态导入 .flowtree/tests 下的脚本并信任其返回的布尔值, 这些脚本含固定 passed = True, 不构成证据。
+    现在不再导入/执行任何脚本, 不改写 circuit.json 节点状态, 也不写运行记录。
+    真实执行请使用故事与显式测试映射 (flowtree story ...; flowtree verify)。
+    """
 
     def __init__(self, target_dir: Path):
         self.target_dir = Path(target_dir).resolve()
         self.flowtree_dir = self.target_dir / ".flowtree"
         self.circuit_file = self.flowtree_dir / "circuit.json"
-        self.test_file = self.flowtree_dir / "tests" / "test_circuit_verification.py"
-        self.storage = StorageManager(self.target_dir)
 
-    def run(self) -> Dict[str, Any]:
-        start_time = time.time()
+    def load_circuit(self) -> Dict[str, Any]:
         if not self.circuit_file.exists():
             raise FileNotFoundError(f"未找到电路配置文件: {self.circuit_file}，请先运行 flowtree init")
-
         with open(self.circuit_file, "r", encoding="utf-8") as f:
-            circuit_data = json.load(f)
+            return json.load(f)
 
-        results = {}
-        if self.test_file.exists():
-            # 动态载入并运行测试脚本中的 verify_all_nodes()
-            spec = importlib.util.spec_from_file_location("circuit_test", str(self.test_file))
-            test_mod = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(test_mod)
-            if hasattr(test_mod, "verify_all_nodes"):
-                results = test_mod.verify_all_nodes()
-
-        nodes = circuit_data.get("nodes", [])
-        updated_count = 0
-        passed_nodes = []
-        blocked_nodes = []
-
-        for node in nodes:
-            nid = node["nodeId"]
-            if nid == "ROOT-PROJECT":
-                continue
-
-            if nid in results:
-                test_res = results[nid]
-                if test_res.get("passed"):
-                    if node.get("status") != "review_pass":
-                        node["status"] = "logic_verified"
-                    if "review" not in node:
-                        node["review"] = {}
-                    node["review"]["logicVerified"] = True
-                    node["review"]["logicVerifiedBy"] = "cli_agent"
-                    passed_nodes.append(nid)
-                else:
-                    node["status"] = "blocked"
-                    if "review" not in node:
-                        node["review"] = {}
-                    node["review"]["logicVerified"] = False
-                    if "comments" not in node["review"]:
-                        node["review"]["comments"] = []
-                    node["review"]["comments"].append(f"CLI断言失败: {test_res.get('error')}")
-                    blocked_nodes.append(nid)
-                updated_count += 1
-
-        # 写回本地 circuit.json
-        with open(self.circuit_file, "w", encoding="utf-8") as f:
-            json.dump(circuit_data, f, ensure_ascii=False, indent=2)
-
-        duration_ms = round((time.time() - start_time) * 1000, 2)
-
-        # 本地 SQLite 持久化度量指标
-        run_id = self.storage.record_run(
-            project_id=circuit_data.get("projectId"),
-            project_name=circuit_data.get("projectName"),
-            total_nodes=len(results),
-            passed_nodes=passed_nodes,
-            blocked_nodes=blocked_nodes,
-            node_details=results,
-            duration_ms=duration_ms
+    def run(self) -> Dict[str, Any]:
+        self.load_circuit()  # 未初始化时保持原有的 FileNotFoundError 语义
+        raise VerificationNotConfigured(
+            "没有可执行的验收依据: 旧自动生成脚本不构成证据, 已停用。"
+            "请提供故事与测试映射, 先用 `flowtree story validate/plan` 检查, 再用 `flowtree verify` 真实执行。"
         )
-
-        return {
-            "runId": run_id,
-            "durationMs": duration_ms,
-            "projectId": circuit_data.get("projectId"),
-            "projectName": circuit_data.get("projectName"),
-            "circuitData": circuit_data,
-            "totalTested": len(results),
-            "passedNodes": passed_nodes,
-            "blockedNodes": blocked_nodes
-        }

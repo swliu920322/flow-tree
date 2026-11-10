@@ -42,3 +42,6 @@ frontend/node_modules/
 .vscode/
 *.swp
 *.swo
+
+# FlowTree 运行状态与证据 (事实记录, 不入库)
+.flowtree/

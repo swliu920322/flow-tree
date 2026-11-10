@@ -1,7 +1,7 @@
 import argparse
+import json
 import os
 import sys
-import time
 from pathlib import Path
 
 # 将 virtual-manage 根目录加入 sys.path
@@ -12,8 +12,17 @@ if str(ROOT_DIR) not in sys.path:
 
 from cli.scanner import ProjectScanner
 from cli.generator import CircuitGenerator
-from cli.runner import CircuitRunner
+from cli.runner import CircuitRunner, VerificationNotConfigured
 from cli.syncer import CircuitSyncer
+from flowtree import service
+
+# 退出码约定 (按命令职责):
+#   story validate : 格式与引用有效 -> 0 (合法的待确认问题只报告); 有 error -> 1
+#   story plan     : 成功生成计划 -> 0 (未映射项只列出); 输入无效 -> 1
+#   status         : 成功读取并展示 -> 0 (不因存在未验项而失败); 无法读取 -> 1
+#   verify         : 必需范围内每个单元本次自动验证均 passed -> 0; 否则(含未映射/未执行完整/失败/错误) -> 1
+#   run / watch    : 旧入口无可信验收依据 -> 1
+#   用法错误       : 2 (argparse)
 
 def cmd_init(args):
     target = Path(args.dir or os.getcwd()).resolve()
@@ -25,165 +34,224 @@ def cmd_init(args):
     print(f"📄 发现关键文档: {list(scan_res['docs'].keys())}")
     print(f"🛠️  检测技术栈: Flutter={scan_res['tech']['has_flutter']}, FastAPI={scan_res['tech']['has_fastapi']}")
 
-    print("\n🤖 内置 Agent 正在根据需求文档抽取业务用例与接口断言链条...")
-    generator = CircuitGenerator(target)
-    circuit_file = generator.generate_all(scan_res["projectName"])
-    print(f"✨ 成功在业务工程根目录生成: {circuit_file}")
-    print(f"🧪 自动化验收断言套件就绪: {target / '.flowtree' / 'tests' / 'test_circuit_verification.py'}")
+    print("\nℹ️  扫描只定位候选文档路径, 不读取正文、不抽取故事。")
+    print("    故事由外部 Agent 整理成 YAML 并提供测试映射, 之后用 `flowtree story validate/plan` 检查。")
+    circuit_file = CircuitGenerator(target).generate_all(scan_res["projectName"])
+    print(f"🗂️  已生成旧电路视图骨架 (固定模板, 全部节点为未验证状态, 非验收依据): {circuit_file}")
 
-    # 尝试同步到 FlowTree 中心服务器
-    syncer = CircuitSyncer(args.server)
-    runner = CircuitRunner(target)
-    run_res = runner.run()
-    sync_res = syncer.sync(run_res["circuitData"])
+    circuit = CircuitRunner(target).load_circuit()
+    sync_res = CircuitSyncer(args.server).sync(circuit)
     if sync_res.get("synced"):
-        print(f"📡 遥测数据已成功同步至 FlowTree 中心大屏: {args.server}")
+        print(f"📡 骨架已同步至 FlowTree 中心大屏: {args.server}")
     else:
         print(f"⚠️  中心服务器提示 (仅本地离线生效): {sync_res.get('error')}")
 
-    print("\n✅ 项目初始化完成！现在可在该目录运行 `flowtree watch` 开启实时代码巡检。")
+    print("\n✅ 初始化完成。尚未执行任何验收。")
+    return 0
 
 def cmd_run(args):
     target = Path(args.dir or os.getcwd()).resolve()
-    print(f"\n🚀 FlowTree CLI: 执行自动化验收巡检 -> {target}")
-    runner = CircuitRunner(target)
     try:
-        res = runner.run()
+        CircuitRunner(target).run()
     except FileNotFoundError as e:
         print(f"❌ 错误: {e}")
-        return
-
-    print(f"📊 测试结果: 共断言 {res['totalTested']} 个节点")
-    print(f"   🟢 逻辑打通 (Logic Verified): {len(res['passedNodes'])} 个 -> {res['passedNodes']}")
-    if res['blockedNodes']:
-        print(f"   🔴 物理卡点 (Blocked): {len(res['blockedNodes'])} 个 -> {res['blockedNodes']}")
-    else:
-        print("   ⚡ 主干电路完全通电，无物理卡点！")
-
-    syncer = CircuitSyncer(args.server)
-    sync_res = syncer.sync(res["circuitData"])
-    if sync_res.get("synced"):
-        print(f"📡 状态已实时同步到大屏: {args.server}/canvas?project={res['projectId']}")
-    else:
-        print(f"ℹ️  本地离线运行中 (中心大屏未连接)")
+        return 1
+    except VerificationNotConfigured as e:
+        print(f"❌ 未执行验收: {e}")
+        return 1
+    return 0
 
 def cmd_status(args):
     target = Path(args.dir or os.getcwd()).resolve()
     circuit_file = target / ".flowtree" / "circuit.json"
     if not circuit_file.exists():
         print(f"❌ 目录 {target} 尚未初始化 FlowTree，请先运行 flowtree init")
-        return
+        return 1
 
-    import json
     with open(circuit_file, "r", encoding="utf-8") as f:
         data = json.load(f)
 
-    print(f"\n=======================================================")
-    print(f"⚡ FlowTree 业务电路健康看板: {data.get('projectName')} ({data.get('projectId')})")
-    print(f"=======================================================")
-    nodes = data.get("nodes", [])
-
-    MODULE_NAMES = {
-        "MOD-AUTH": "连接与家庭约定",
-        "MOD-TASK": "任务派发与审批",
-        "MOD-SHOP": "愿望与商城兑现",
-        "MOD-SAVINGS": "克制欲望储蓄"
-    }
-
-    # 按模块分类统计
-    modules = {}
-    for n in nodes:
-        if n["nodeId"] == "ROOT-PROJECT":
-            continue
-        mid = n.get("parentId") or n.get("moduleId") or "MAIN"
-        mname = MODULE_NAMES.get(mid, n.get("moduleName", mid))
-        if mid not in modules:
-            modules[mid] = {"name": mname, "total": 0, "verified": 0, "blocked": 0}
-        modules[mid]["total"] += 1
-        if n.get("status") in ("logic_verified", "review_pass"):
-            modules[mid]["verified"] += 1
-        elif n.get("status") == "blocked":
-            modules[mid]["blocked"] += 1
-
-    print(f"{'模块ID':<15} {'模块名称':<18} {'通过率':<12} {'状态'}")
-    print("-" * 60)
-    for mid, m in modules.items():
-        pct = int((m["verified"] / m["total"]) * 100) if m["total"] > 0 else 0
-        state_icon = "🟢 正常通电" if m["blocked"] == 0 else "🔴 存在卡点"
-        print(f"{mid:<15} {m['name']:<18} {pct:>3}% ({m['verified']}/{m['total']})    {state_icon}")
-    print("=" * 60)
+    print(f"\n⚡ FlowTree 旧电路视图: {data.get('projectName')} ({data.get('projectId')})")
+    print("   注意: 这是旧电路模型的状态投影, 不是验收证据, 不代表通过率。")
+    if data.get("origin") == "template_unverified":
+        print("   节点来自固定模板骨架, 尚未与任何故事或真实测试关联。")
+    counts = {}
+    for n in data.get("nodes", []):
+        counts[n.get("status", "unknown")] = counts.get(n.get("status", "unknown"), 0) + 1
+    for status, c in sorted(counts.items()):
+        print(f"   {status:<16} {c}")
+    print("\n   故事验收计划请用: flowtree story plan <故事目录> --mappings <映射目录>")
+    return 0
 
 def cmd_watch(args):
-    target = Path(args.dir or os.getcwd()).resolve()
-    print(f"\n👀 FlowTree Watcher 启动中: 正在监听工程目录 -> {target}")
-    print(f"💡 修改代码或测试后将自动执行断言并点亮电路看板 (按 Ctrl+C 退出)...")
+    print("❌ watch 暂不可用: 它原先重复触发会固定通过的模板脚本。")
+    print("   请使用 `flowtree verify` 执行真实验收; 监听模式后续再恢复。")
+    return 1
 
-    # 首次启动先跑一次
-    cmd_run(args)
+def _print_issues(issues):
+    for i in issues:
+        mark = "❌" if i["severity"] == "error" else "⚠️ "
+        print(f"  {mark} [{i['code']}] {i['where']}: {i['message']}")
 
-    watch_dirs = [target / "backend", target / "lib", target / ".flowtree" / "tests"]
-    existing_dirs = [d for d in watch_dirs if d.exists()]
-    if not existing_dirs:
-        existing_dirs = [target]
+def _story_paths(args):
+    return [Path(p) for p in args.stories], ([Path(p) for p in args.mappings] if args.mappings else None)
 
-    def get_max_mtime():
-        max_t = 0.0
-        for wd in existing_dirs:
-            for root, _, files in os.walk(wd):
-                if any(ignored in root for ignored in [".git", "__pycache__", "build", ".dart_tool"]):
-                    continue
-                for f in files:
-                    fp = os.path.join(root, f)
-                    try:
-                        t = os.path.getmtime(fp)
-                        if t > max_t:
-                            max_t = t
-                    except OSError:
-                        pass
-        return max_t
+def cmd_story_validate(args):
+    stories, mappings = _story_paths(args)
+    res = service.validate(stories, mappings)
+    if args.json:
+        print(json.dumps(res, ensure_ascii=False, indent=2))
+        return 0 if res["ok"] else 1
+    for s in res["stories"]:
+        print(f"📖 {s['id']}  {s['digest']}  ({len(s['units'])} 个可验证单元)")
+        for q in s["open_questions"]:
+            tag = "旧格式, 保守阻塞整个故事" if q["legacy"] else f"阻塞 {q['blocks']}"
+            print(f"   ❓ 待确认 {q['id']}: {q['text']}  [{tag}]")
+        if s["untyped_inputs"]:
+            print(f"   ℹ️  未声明类型的输入(未做类型校验): {s['untyped_inputs']}")
+    for m in res["mappings"]:
+        print(f"🔗 映射 {m['path']}  story={m['story']}  {m['digest']}")
+    if res["issues"]:
+        print("问题:")
+        _print_issues(res["issues"])
+    print("✅ 格式与引用有效" if res["ok"] else "❌ 校验未通过")
+    return 0 if res["ok"] else 1
 
-    last_mtime = get_max_mtime()
-    try:
-        while True:
-            time.sleep(1.5)
-            curr_mtime = get_max_mtime()
-            if curr_mtime > last_mtime:
-                last_mtime = curr_mtime
-                print(f"\n🔄 [{time.strftime('%H:%M:%S')}] 检测到代码或用例文件变更，触发自动化巡检...")
-                cmd_run(args)
-    except KeyboardInterrupt:
-        print("\n👋 FlowTree Watcher 已安全停止。")
+def cmd_story_plan(args):
+    stories, mappings = _story_paths(args)
+    res = service.plan(stories, mappings)
+    if args.json:
+        print(json.dumps(res, ensure_ascii=False, indent=2))
+        return 0 if res["ok"] else 1
+    print("📋 验收计划 (未执行任何测试)")
+    for s in res["stories"]:
+        sm = s["summary"]
+        a = sm["automation"]
+        print(f"\n{s['id']}  {s['digest']}")
+        print(f"  已定义 {sm['units_total']} 个单元 | 未映射 {a['unmapped']} | 已映射未执行 {a['not_run']} | 规则待确认 {sm['rule_pending']} | 人工未验收 {sm['human_unverified']}")
+        for u in s["units"]:
+            print(f"   {u['id']:<24} 规则={u['rule']:<8} 自动验证={u['automation']:<9} 人工={u['human']}  映射={u['entries'] or '-'}")
+        print("  未完成原因: " + "; ".join(sm["incomplete_reasons"]))
+    if res["issues"]:
+        print("\n问题:")
+        _print_issues(res["issues"])
+    if not res["ok"]:
+        print("❌ 输入存在 error, 计划可能不完整")
+    return 0 if res["ok"] else 1
 
-def main():
+def _print_units(res):
+    for s in res["stories"]:
+        sm = s["summary"]
+        a = sm["automation"]
+        counts = " ".join(f"{k}={v}" for k, v in a.items() if v)
+        print(f"\n{s['id']}  {s['digest']}")
+        print(f"  已定义 {sm['units_total']} 个单元 | {counts} | 证据过期/未知 {sm['units_with_stale_or_unknown_evidence']} | 规则待确认 {sm['rule_pending']} | 人工未验收 {sm['human_unverified']}")
+        for u in s["units"]:
+            extra = ""
+            for e in u["entries"]:
+                if e["validity"] not in (None, "current"):
+                    extra += f" [{e['entry']}: 历史={e['last_result']} 证据{e['validity']}: {'; '.join(e['validity_reasons'])}]"
+            print(f"   {u['id']:<24} 自动验证={u['automation']:<9} 规则={u['rule']:<8} 人工={u['human']}{extra}")
+        print("  未完成原因: " + "; ".join(sm["incomplete_reasons"]))
+    if res.get("command_failures"):
+        print("\n最近一次真实命令存在失败 (与逐场景结果分开呈现):")
+        for c in res["command_failures"]:
+            print(f"  ⚠️  {c['story']}/{c['entry']} exit={c['exit_code']} 未映射失败={c['unmapped_nonpass']}")
+    if res.get("evidence_problems"):
+        print("\n证据问题 (这些尝试按 error 处理):")
+        for p in res["evidence_problems"]:
+            print(f"  ❌ {p}")
+    if res["issues"]:
+        print("\n问题:")
+        _print_issues(res["issues"])
+
+def cmd_verify(args):
+    stories, mappings = _story_paths(args)
+    res = service.verify(stories, mappings, Path(args.project_root), args.python, args.mapped_only, args.entry)
+    if args.json:
+        print(json.dumps(res, ensure_ascii=False, indent=2))
+        return 0 if res["ok"] else 1
+    if not res["executed"]:
+        print(f"❌ 未执行: {res.get('reason')}")
+        _print_issues(res["issues"])
+        return 1
+    print(f"🚀 run {res['run_id']}")
+    for a in res["attempts"]:
+        extra = f" ({a['reason']})" if a["reason"] else ""
+        print(f"  {a['entry']:<28} {a['state']:<10} exit={a['exit_code']} {a['counts']}{extra}")
+        if a["unmapped_nonpass"]:
+            print(f"      ⚠️  命令中未被映射的测试已失败/出错: {a['unmapped_nonpass']}")
+        if a["cleanup"] and (a["cleanup"]["sigterm"] or a["cleanup"]["sigkill"]):
+            print(f"      🧹 清理了遗留的进程组成员: {a['cleanup']}")
+    _print_units(res)
+    print("\n✅ 必需范围本次自动验证全部通过(人工验收与规则确认另计)" if res["ok"] else "\n❌ 必需范围未全部通过或未完整执行")
+    return 0 if res["ok"] else 1
+
+def cmd_story_status(args):
+    stories, mappings = _story_paths(args)
+    res = service.status(stories, mappings, Path(args.project_root), args.python)
+    if args.json:
+        print(json.dumps(res, ensure_ascii=False, indent=2))
+        return 0 if res["ok"] else 1
+    print("📊 当前证据状态 (不执行测试)")
+    _print_units(res)
+    return 0 if res["ok"] else 1
+
+def main(argv=None):
     parser = argparse.ArgumentParser(
         prog="flowtree",
-        description="FlowTree CLI - 面向业务开发的自主测试中枢与电路健康看板"
+        description="FlowTree CLI - 故事驱动的验收契约与证据工具"
     )
     parser.add_argument("--server", default="http://127.0.0.1:8000", help="FlowTree 中心看板服务地址")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    # init
-    p_init = subparsers.add_parser("init", help="扫描工程目录并初始化 .flowtree 拓扑与测试脚手架")
+    p_init = subparsers.add_parser("init", help="扫描工程目录并生成旧电路视图骨架 (不执行验收)")
     p_init.add_argument("dir", nargs="?", default=".", help="业务工程目录路径 (默认当前目录)")
     p_init.set_defaults(func=cmd_init)
 
-    # run
-    p_run = subparsers.add_parser("run", help="执行自动化断言套件并更新本地电路与中心大屏")
+    p_run = subparsers.add_parser("run", help="[旧入口] 无可信验收依据, 将报告未执行并返回非零")
     p_run.add_argument("dir", nargs="?", default=".", help="业务工程目录路径 (默认当前目录)")
     p_run.set_defaults(func=cmd_run)
 
-    # status
-    p_status = subparsers.add_parser("status", help="在终端打印当前工程的电路健康度与卡点")
+    p_status = subparsers.add_parser("status", help="展示旧电路视图的状态分布 (非验收证据)")
     p_status.add_argument("dir", nargs="?", default=".", help="业务工程目录路径 (默认当前目录)")
     p_status.set_defaults(func=cmd_status)
 
-    # watch
-    p_watch = subparsers.add_parser("watch", help="监听代码变更，实时触发测试断言并点亮电路")
+    p_watch = subparsers.add_parser("watch", help="[暂不可用] 待真实执行 (B1b) 提供后恢复")
     p_watch.add_argument("dir", nargs="?", default=".", help="业务工程目录路径 (默认当前目录)")
     p_watch.set_defaults(func=cmd_watch)
 
-    parsed = parser.parse_args()
-    parsed.func(parsed)
+    p_story = subparsers.add_parser("story", help="故事契约: 校验与验收计划")
+    story_sub = p_story.add_subparsers(dest="story_command", required=True)
+    for name, fn, helptext in (
+        ("validate", cmd_story_validate, "校验故事(及映射)的格式、引用与摘要"),
+        ("plan", cmd_story_plan, "生成验收计划: 分母、映射、未映射与待确认项 (不执行测试)"),
+    ):
+        sp = story_sub.add_parser(name, help=helptext)
+        sp.add_argument("stories", nargs="+", help="故事 YAML 文件或目录")
+        sp.add_argument("--mappings", nargs="+", help="测试映射 YAML 文件或目录")
+        sp.add_argument("--json", action="store_true", help="输出 JSON")
+        sp.set_defaults(func=fn)
+
+    def add_exec_args(sp):
+        sp.add_argument("stories", nargs="+", help="故事 YAML 文件或目录")
+        sp.add_argument("--mappings", nargs="+", required=True, help="测试映射 YAML 文件或目录")
+        sp.add_argument("--project-root", required=True, help="被测项目根目录; 映射的 cwd 相对它解析, 证据写入其 .flowtree/")
+        sp.add_argument("--python", help="被测项目的解释器 (映射 argv[0] 为 python* 时使用); 不会静默改用 FlowTree 自己的解释器")
+        sp.add_argument("--json", action="store_true", help="输出 JSON")
+
+    p_verify = subparsers.add_parser("verify", help="按映射真实执行一次 pytest 并保存证据")
+    add_exec_args(p_verify)
+    p_verify.add_argument("--mapped-only", action="store_true", help="必需范围只含已映射单元 (默认: 故事全部单元)")
+    p_verify.add_argument("--entry", action="append", help="只执行指定映射条目: STORY/ENTRY, 或在各故事间不重名的裸 ENTRY (可重复; 未知或歧义会报错并不执行)")
+    p_verify.set_defaults(func=cmd_verify)
+
+    sp = story_sub.add_parser("status", help="读取已有证据并结合当前基线展示状态 (不执行)")
+    add_exec_args(sp)
+    sp.set_defaults(func=cmd_story_status)
+
+    parsed = parser.parse_args(argv)
+    sys.exit(parsed.func(parsed) or 0)
 
 if __name__ == "__main__":
     main()

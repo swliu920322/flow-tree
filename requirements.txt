@@ -1,0 +1,7 @@
+# FlowTree 唯一依赖主清单。安装: python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+# 运行测试: .venv/bin/python -m pytest tests/implementation
+pydantic>=2.12,<3
+PyYAML>=6,<7
+fastapi>=0.115
+httpx>=0.27        # fastapi TestClient 依赖
+pytest>=8,<10

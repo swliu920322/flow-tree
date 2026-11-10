@@ -1,0 +1,61 @@
+# 取自 docs/STORY_ACCEPTANCE_SPEC.md 第 4 节示例 (原格式, 未改写)。数值为隔离测试夹具。
+schema_version: "0.1"
+id: SAV-001
+title: 记录一次克制消费
+actor: 已登录用户
+goal: 记录忍住的消费并查看累计挑战进度
+sources:
+  - path: USER_STORY_MAP.md
+    anchor: US-38
+preconditions:
+  - 用户已建立储蓄挑战
+  - 当前挑战进度为 10.00
+  - 当前 A 积分为 20.00
+inputs:
+  category: 数码消费
+  amount: "0.25"
+main_flow:
+  - id: STEP-01
+    action: 用户打开克制记录弹窗
+    expected:
+      - 可输入分类、金额和备注
+  - id: STEP-02
+    action: 用户选择分类，输入金额并确认提交
+    expected:
+      - 提交期间显示处理状态
+  - id: STEP-03
+    action: 用户查看提交结果
+    expected:
+      - 挑战进度为 10.25
+      - 新增且仅新增一条金额为 0.25 的克制记录
+      - 成功提示显示 0.25
+      - A 积分仍为 20.00
+  - id: STEP-04
+    action: 用户离开页面后重新进入
+    expected:
+      - 进度与记录保持一致
+branches:
+  - id: CASE-01
+    at: STEP-02
+    kind: validation
+    condition: 金额为 0
+    expected:
+      - 明确提示金额无效
+      - 进度和记录不变
+    continuation:
+      type: end
+  - id: CASE-02
+    at: STEP-02
+    kind: recovery
+    condition: 服务端处理成功但客户端未收到响应
+    expected:
+      - 保留原操作标识，重试确认原操作结果
+      - 不重复增加进度或记录
+    continuation:
+      type: rejoin
+      target: STEP-03
+invariants:
+  - 挑战记录不改变 A/B 积分
+  - 用户只能操作自己的挑战
+  - 金额最多两位小数
+open_questions: []

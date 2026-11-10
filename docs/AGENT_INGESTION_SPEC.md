@@ -1,5 +1,7 @@
 # FlowTree 面向 AI Agent 的数据自报协议与指令模板规范 (Agent Ingestion Spec)
 
+> **文档优先级提示（2026-11-10）**：涉及用户故事、验收证据、最小代码修复，以及"Agent 自报状态即点亮/通过"的条款，以 `docs/STORY_ACCEPTANCE_SPEC.md` 和 `docs/SESSION_HANDOFF_2026-11-10.md` 为准；本文其余内容仍作为现有设计参考。
+
 > **定位**：FlowTree 不是复杂的企业 ERP 或工单系统，而是一个**「Agent-Native 状态电路交付引擎」**。
 > 研发执行完全由 AI Agent（如 Claude Code, Devin, Cursor, Gemini, 自动化 CI 脚本）自主推进；Agent 遵循本规范自动向 FlowTree 汇报数据，系统自动点亮电路，为企业与客户提供零认知负担的进度全景交付。
 

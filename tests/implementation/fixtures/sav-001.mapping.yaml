@@ -1,0 +1,28 @@
+# 示例映射: 用 pytest 精确 nodeid 覆盖 SAV-001 的单元。测试文件在样本项目中, 本仓库不含。
+schema_version: "0.1"
+story: SAV-001
+story_digest: "sha256:7d95fd0d842d5f9053eabc99d8a6b43a19b5fced77506c8f13296fc5202f9bc7"
+entries:
+  - id: M-01
+    covers: [SAV-001.CASE-01]
+    level: backend
+    runner: pytest
+    cwd: .
+    argv: [python, -m, pytest, tests/test_savings.py, -q]
+    tests:
+      - nodeid: tests/test_savings.py::test_zero_amount_rejected
+        match: exact
+    env:
+      id: sqlite-isolated
+  - id: M-02
+    covers: [SAV-001.CASE-02, SAV-001.STEP-03]
+    level: backend
+    runner: pytest
+    cwd: .
+    argv: [python, -m, pytest, tests/test_savings.py, -q]
+    tests:
+      - nodeid: tests/test_savings.py::test_resume_after_lost_response
+        match: exact
+    env:
+      id: sqlite-isolated
+    timeout_s: 300

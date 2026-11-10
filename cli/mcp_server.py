@@ -16,61 +16,44 @@ if str(ROOT_DIR) not in sys.path:
 
 from cli.scanner import ProjectScanner
 from cli.generator import CircuitGenerator
-from cli.runner import CircuitRunner
+from cli.runner import CircuitRunner, VerificationNotConfigured
 from cli.syncer import CircuitSyncer
 from cli.storage import StorageManager
+from flowtree import service
 
 class FlowTreeMCPTools:
     """Agent 原生工具集实现"""
 
     @staticmethod
     def tool_init(project_dir: str, server_url: str = "http://127.0.0.1:8000") -> Dict[str, Any]:
-        """【MCP Tool】扫描业务项目，自动生成 .flowtree/circuit.json 拓扑与测试脚手架"""
+        """【MCP Tool】扫描业务项目并生成旧电路视图骨架 (固定模板, 全部未验证)。不执行任何验收。"""
         target = Path(project_dir).resolve()
-        scanner = ProjectScanner(target)
-        scan_res = scanner.scan()
-
-        generator = CircuitGenerator(target)
-        circuit_file = generator.generate_all(scan_res["projectName"])
-
-        runner = CircuitRunner(target)
-        run_res = runner.run()
-
-        syncer = CircuitSyncer(server_url)
-        sync_res = syncer.sync(run_res["circuitData"])
-
+        scan_res = ProjectScanner(target).scan()
+        circuit_file = CircuitGenerator(target).generate_all(scan_res["projectName"])
+        circuit = CircuitRunner(target).load_circuit()
+        sync_res = CircuitSyncer(server_url).sync(circuit)
         return {
             "success": True,
+            "verified": False,
             "projectName": scan_res["projectName"],
             "circuitFile": str(circuit_file),
-            "totalNodes": run_res["totalTested"],
             "synced": sync_res.get("synced", False),
-            "database": str(target / ".flowtree" / "data.db")
+            "database": str(target / ".flowtree" / "data.db"),
+            "note": "骨架为固定模板, 非验收依据; 请提供故事与测试映射后用 story_validate / story_plan 检查",
         }
 
     @staticmethod
     def tool_verify(project_dir: str, server_url: str = "http://127.0.0.1:8000") -> Dict[str, Any]:
-        """【MCP Tool】触发自动化巡检验收，更新本地电路与 SQLite 数据库，并同步大屏"""
-        target = Path(project_dir).resolve()
-        runner = CircuitRunner(target)
-        run_res = runner.run()
-
-        syncer = CircuitSyncer(server_url)
-        sync_res = syncer.sync(run_res["circuitData"])
-
-        return {
-            "runId": run_res.get("runId"),
-            "durationMs": run_res.get("durationMs"),
-            "totalTested": run_res["totalTested"],
-            "passedCount": len(run_res["passedNodes"]),
-            "blockedCount": len(run_res["blockedNodes"]),
-            "blockedNodes": run_res["blockedNodes"],
-            "synced": sync_res.get("synced", False)
-        }
+        """【MCP Tool】旧验收入口: 没有可信验收依据时如实返回未执行。真实执行随 B1b 提供。"""
+        try:
+            CircuitRunner(Path(project_dir).resolve()).run()
+        except (FileNotFoundError, VerificationNotConfigured) as e:
+            return {"executed": False, "error": str(e)}
+        return {"executed": False, "error": "旧入口不产生验收证据"}
 
     @staticmethod
     def tool_status(project_dir: str) -> Dict[str, Any]:
-        """【MCP Tool】查询当前工程的健康度、模块通过率与物理卡点"""
+        """【MCP Tool】旧电路视图的状态分布 (非验收证据, 不含通过率)"""
         target = Path(project_dir).resolve()
         circuit_file = target / ".flowtree" / "circuit.json"
         if not circuit_file.exists():
@@ -79,24 +62,26 @@ class FlowTreeMCPTools:
         with open(circuit_file, "r", encoding="utf-8") as f:
             data = json.load(f)
 
-        modules = {}
+        counts: Dict[str, int] = {}
         for n in data.get("nodes", []):
-            if n["nodeId"] == "ROOT-PROJECT":
-                continue
-            mid = n.get("parentId") or "MAIN"
-            if mid not in modules:
-                modules[mid] = {"total": 0, "verified": 0, "blocked": 0}
-            modules[mid]["total"] += 1
-            if n.get("status") in ("logic_verified", "review_pass"):
-                modules[mid]["verified"] += 1
-            elif n.get("status") == "blocked":
-                modules[mid]["blocked"] += 1
-
+            counts[n.get("status", "unknown")] = counts.get(n.get("status", "unknown"), 0) + 1
         return {
             "projectId": data.get("projectId"),
             "projectName": data.get("projectName"),
-            "modules": modules
+            "origin": data.get("origin"),
+            "legacyStatusCounts": counts,
+            "isVerificationEvidence": False,
         }
+
+    @staticmethod
+    def tool_story_validate(stories: List[str], mappings: List[str] = None) -> Dict[str, Any]:
+        """【MCP Tool】校验故事(及映射)的格式、引用与摘要"""
+        return service.validate([Path(p) for p in stories], [Path(p) for p in mappings] if mappings else None)
+
+    @staticmethod
+    def tool_story_plan(stories: List[str], mappings: List[str] = None) -> Dict[str, Any]:
+        """【MCP Tool】生成验收计划 (分母、映射、未映射与待确认项), 不执行测试"""
+        return service.plan([Path(p) for p in stories], [Path(p) for p in mappings] if mappings else None)
 
     @staticmethod
     def tool_history(project_dir: str, limit: int = 5) -> List[Dict[str, Any]]:
@@ -113,6 +98,7 @@ def main():
     if len(sys.argv) > 1 and sys.argv[1] == "--test":
         target = sys.argv[2] if len(sys.argv) > 2 else "."
         print("Testing MCP Verify Tool:", FlowTreeMCPTools.tool_verify(target))
+    # 注意: 尚未实现 MCP 协议握手与请求分发, 这里只有工具函数。
 
 if __name__ == "__main__":
     main()
