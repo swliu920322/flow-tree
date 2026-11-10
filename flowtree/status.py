@@ -9,10 +9,12 @@
 """
 from dataclasses import dataclass, field, replace
 from enum import Enum
-from typing import Dict, List, Optional, Tuple
+from typing import TYPE_CHECKING, Dict, List, Optional, Tuple
 
-from .mapping import LoadedMapping
 from .story import LoadedStory
+
+if TYPE_CHECKING:  # 仅用于注解: 运行时导入会与 mapping → runners → pytest_report 形成环
+    from .mapping import LoadedMapping
 
 
 class Rule(str, Enum):
@@ -207,7 +209,7 @@ class UnitView:
 
 def compute_units(
     story: LoadedStory,
-    mappings: List[LoadedMapping],
+    mappings: List["LoadedMapping"],
     evidence: Dict[Tuple[str, str], EntryEvidence],
     current_baselines: Dict[Tuple[str, str], Baseline],
     human: Optional[Dict[str, Human]] = None,

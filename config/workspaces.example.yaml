@@ -20,3 +20,18 @@ workspaces:
       env_from_host: []     # 机密/凭据只写变量名, 值在运行/重检时从启动进程的宿主环境读取, 永不落盘; 缺失 → 执行 blocked / 重检 unknown
       # pinned_path: "/usr/bin:/bin"    # 仅 pinned, 可选; 默认 /usr/bin:/bin:/usr/sbin:/sbin
       git_excludes_file: /absolute/path/to/git-excludes   # 可选: git 排除规则 (pinned 下同时隔离宿主的系统/全局 git 配置)
+
+  # Flutter 客户端测试 (runner: flutter) 的 pinned 上下文示例。映射 argv 只能是 `flutter test <相对的 *_test.dart>`;
+  # 必须声明 HOME (否则 flutter 会把 .config/flutter、.flutter 写进工作目录, FlowTree 会明确阻塞); 不会自动 pub get、
+  # 升级 SDK 或联网, 依赖缓存/SDK 缺失会阻塞。
+  - id: life-piggy-bank-flutter
+    name: Life-Piggy-Bank (flutter)
+    project_root: /absolute/path/to/Life-Piggy-Bank
+    stories: [examples/stories]
+    mappings: [/absolute/path/to/flutter-mappings]
+    execution_context:
+      mode: pinned
+      pinned_path: "/absolute/path/to/flutter/bin:/usr/bin:/bin"   # 让映射里的 `flutter` 解析到固定的 SDK
+      env_from_host: [HOME]
+      env: {PYTHONDONTWRITEBYTECODE: "1"}
+      git_excludes_file: /absolute/path/to/git-excludes

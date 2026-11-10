@@ -2,11 +2,11 @@
 
 执行范围必须可证明:
 - `tests` 的每一项都是显式对象 {nodeid, match}; 不接受裸字符串、前缀或通配符。
-- match=exact: 精确 pytest nodeid (可带具体参数实例, 如 test_a[1])。
-- match=parametrized: 需要"本次收集集合"证据才能证明参数实例完整, 机制未就绪前 B1a 明确拒绝。
-- argv 不得含改变收集范围的选项 (-k/-m/--deselect/--lf/-x 等), 否则无法证明执行了映射声明的范围。
+- match=exact: 精确测试标识。pytest: nodeid (可带具体参数实例, 如 test_a[1]);
+  flutter: `<相对文件>::<带分组前缀的完整测试名>` (只按第一个 `::` 分隔)。
+- match=parametrized: 需要"本次收集集合"证据才能证明参数实例完整, 目前明确拒绝。
+- argv 与标识的 runner 专属校验由 flowtree.runners 负责 (pytest: 范围选项黑名单; flutter: 只接受文件路径的白名单)。
 """
-import posixpath
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -16,20 +16,11 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from .canon import YamlLoadError, content_digest, load_yaml_file
 from .issues import ERROR, WARNING, Issue
+from .runners import get_runner, runner_names
 from .story import ID_RE, SCHEMA_VERSION, LoadedStory, StorySet, collect_yaml_files
 
 LEVELS = ("code_review", "backend", "client", "e2e")
-RUNNERS = ("pytest",)
 SUPPORTED_MATCH = ("exact",)
-
-# pytest 选项: 会筛选/截断/改写执行范围或与 FlowTree 自行注入的报告冲突
-_FORBIDDEN_LONG = {
-    "--deselect", "--lf", "--last-failed", "--ff", "--failed-first", "--nf", "--new-first",
-    "--sw", "--stepwise", "--maxfail", "--exitfirst", "--collect-only", "--co",
-    "--junitxml", "--junit-xml", "--confcutdir", "--ignore", "--ignore-glob",
-    "--pyargs", "--keep-duplicates", "--markers", "--help", "--version",
-}
-_FORBIDDEN_SHORT = ("-k", "-m", "-x", "-p", "-h", "-V")
 
 
 class _Strict(BaseModel):
@@ -76,42 +67,13 @@ class LoadedMapping:
     issues: List[Issue] = field(default_factory=list)
 
 
-def _pytest_args(argv: List[str]) -> Optional[List[str]]:
-    """识别 pytest 调用并返回其后的参数; 无法识别返回 None。"""
-    head = Path(argv[0]).name
-    if head in ("pytest", "py.test"):
-        return argv[1:]
-    if head.startswith("python") and argv[1:3] == ["-m", "pytest"]:
-        return argv[3:]
-    return None
-
-
-def _forbidden_arg(arg: str) -> Optional[str]:
-    if not arg.startswith("-"):
-        return None
-    if arg.startswith("--"):
-        name = arg.split("=", 1)[0]
-        return name if name in _FORBIDDEN_LONG else None
-    for s in _FORBIDDEN_SHORT:
-        if arg == s or arg.startswith(s):  # -k expr / -kexpr / -x / -pfoo
-            return s
-    return None
-
-
 def _check_entry(entry: Entry, where: str, issues: List[Issue]) -> None:
     if not ID_RE.match(entry.id):
         issues.append(Issue(ERROR, "mapping.bad_id", where, f"entry id {entry.id!r} must match {ID_RE.pattern}"))
-    if entry.runner not in RUNNERS:
-        issues.append(Issue(ERROR, "mapping.runner_unsupported", where, f"runner {entry.runner!r} unsupported (supported: {', '.join(RUNNERS)})"))
+    if entry.runner not in runner_names():
+        issues.append(Issue(ERROR, "mapping.runner_unsupported", where, f"runner {entry.runner!r} unsupported (supported: {', '.join(runner_names())})"))
     else:
-        rest = _pytest_args(entry.argv)
-        if rest is None:
-            issues.append(Issue(ERROR, "mapping.argv_not_pytest", where, "argv must invoke pytest (e.g. [python, -m, pytest, ...] or [pytest, ...])"))
-        else:
-            for a in rest:
-                bad = _forbidden_arg(a)
-                if bad:
-                    issues.append(Issue(ERROR, "mapping.argv_scope_option", where, f"argv option {a!r} ({bad}) changes collection/report scope; execution range could not be proven"))
+        get_runner(entry.runner).validate_entry(entry, where, issues)   # argv 与测试标识: runner 专属
     for name in entry.env.ignore:
         if not re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", name):
             issues.append(Issue(ERROR, "mapping.env_ignore", where, f"env.ignore name {name!r} is not a valid variable name"))
@@ -122,20 +84,10 @@ def _check_entry(entry: Entry, where: str, issues: List[Issue]) -> None:
     for j, t in enumerate(entry.tests):
         tw = f"{where}.tests[{j}]"
         if t.match not in SUPPORTED_MATCH:
-            issues.append(Issue(ERROR, "mapping.match_unsupported", tw, f"match={t.match!r} is not supported in B1a: parametrized coverage needs collection evidence for the full instance set; use exact nodeids"))
-        nid = t.nodeid
-        base = nid.split("[", 1)[0]  # 参数实例括号内允许出现任意字符
-        if "::" not in nid or nid != nid.strip() or "*" in base or "?" in base:
-            issues.append(Issue(ERROR, "mapping.bad_nodeid", tw, f"nodeid {nid!r} must be an exact pytest nodeid like path/to/test_x.py::test_name (no wildcards or prefixes)"))
-        else:
-            file_part = nid.split("::", 1)[0]
-            if file_part.startswith("/") or ".." in posixpath.normpath(file_part).split("/"):
-                issues.append(Issue(ERROR, "mapping.bad_nodeid", tw, f"nodeid path {file_part!r} must be relative to the pytest rootdir and stay inside it"))
-            if not file_part.endswith(".py"):
-                issues.append(Issue(ERROR, "mapping.bad_nodeid", tw, f"nodeid path {file_part!r} must be a .py test file"))
-        if nid in seen:
-            issues.append(Issue(ERROR, "mapping.duplicate_test", tw, f"nodeid {nid!r} listed twice in entry"))
-        seen.add(nid)
+            issues.append(Issue(ERROR, "mapping.match_unsupported", tw, f"match={t.match!r} is not supported: parametrized coverage needs collection evidence for the full instance set; use exact test ids"))
+        if t.nodeid in seen:
+            issues.append(Issue(ERROR, "mapping.duplicate_test", tw, f"nodeid {t.nodeid!r} listed twice in entry"))
+        seen.add(t.nodeid)
 
 
 def load_mapping_file(path: Path, stories: StorySet) -> LoadedMapping:

@@ -20,8 +20,8 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 from . import baseline as bl
 from .evidence import EvidenceStore, baseline_to_dict, now_iso, sha256_file
 from .context import ContextSpec, resolve as resolve_context
-from .mapping import Entry, LoadedMapping, _pytest_args
-from .pytest_report import classify, parse_junit
+from .mapping import Entry, LoadedMapping
+from .runners import get_runner
 from .status import AttemptState, Baseline
 from .story import LoadedStory
 
@@ -35,37 +35,9 @@ def child_env(extra: Optional[Dict[str, str]] = None) -> Dict[str, str]:
     return resolve_context(ContextSpec(env=dict(extra or {}))).env
 
 
-def resolve_interpreter(entry: Entry, project_cwd: Path, python: Optional[str], env: Dict[str, str]) -> Optional[str]:
-    """argv[0] 实际要执行的可执行文件; None 表示找不到。"""
-    head = entry.argv[0]
-    if Path(head).name.startswith("python"):
-        if python:
-            return python if os.path.exists(python) else None
-        return shutil.which(head, path=env.get("PATH")) if not os.path.dirname(head) else (
-            str((project_cwd / head).resolve()) if (project_cwd / head).exists() else None)
-    if os.path.dirname(head):
-        p = (project_cwd / head).resolve() if not os.path.isabs(head) else Path(head)
-        return str(p) if p.exists() else None
-    return shutil.which(head, path=env.get("PATH"))
-
-
-def probe_python(entry: Entry, exe: Optional[str], python: Optional[str]) -> Optional[str]:
-    """用于探测运行时的 python: python* 形式用其本身; pytest 脚本形式必须显式给 --python。"""
-    if Path(entry.argv[0]).name.startswith("python"):
-        return exe
-    return python
-
-
-def build_command(entry: Entry, exe: str, junit_path: Path) -> List[str]:
-    cmd = [exe, *entry.argv[1:]]
-    rest_index = len(entry.argv) - len(_pytest_args(entry.argv))
-    inject = ["-p", "flowtree_pytest_plugin", "-p", "no:cacheprovider", f"--junitxml={junit_path}"]
-    return cmd[:rest_index] + inject + cmd[rest_index:]
-
-
 def current_baseline(
     story: LoadedStory, mapping: LoadedMapping, entry: Entry, project_root: Path,
-    python: Optional[str], runtime_cache: Optional[Dict[str, Optional[str]]] = None,
+    python: Optional[str], runtime_cache: Optional[Dict[Any, Optional[str]]] = None,
     spec_files: frozenset = frozenset(), ctx: Optional[ContextSpec] = None, readonly: bool = False,
 ) -> Baseline:
     """现在的基线 (用于 verify 前后比较, 以及 status 判断历史证据是否仍适用)。
@@ -73,15 +45,15 @@ def current_baseline(
     rc = resolve_context(ctx)
     env, genv = rc.env, rc.effective_git_env
     cwd = (project_root / entry.cwd).resolve() if not os.path.isabs(entry.cwd) else Path(entry.cwd)
-    exe = resolve_interpreter(entry, cwd, python, env)
-    py = probe_python(entry, exe, python)
+    runner = get_runner(entry.runner)
+    exe = runner.resolve_executable(entry, cwd, python, env)
     runtime = None
-    if py:
+    key = runner.runtime_cache_key(entry, exe, python, cwd)
+    if key is not None:   # 只读探测; 失败 (前置缺失) → 摘要 None → 有效性 unknown
         cache = runtime_cache if runtime_cache is not None else {}
-        if py not in cache:
-            info, _ = bl.probe_runtime(py, env)
-            cache[py] = info["digest"] if info else None
-        runtime = cache[py]
+        if key not in cache:
+            cache[key] = runner.runtime(entry, exe, python, env, cwd, project_root).digest
+        runtime = cache[key]
     fp = bl.worktree_fingerprint(cwd, spec_files, genv) if cwd.exists() else None
     salt = bl.env_salt(project_root, create=not readonly)
     # 上下文未能完整解析 (缺必需宿主变量等): 实际环境不完整, 不能取摘要 → unknown, 不退回宿主环境
@@ -162,16 +134,16 @@ def run_attempt(
     cwd = (project_root / entry.cwd).resolve() if not os.path.isabs(entry.cwd) else Path(entry.cwd)
     runtime_cache: Dict[str, Optional[str]] = {}
     before = current_baseline(story, mapping, entry, project_root, python, runtime_cache, spec_files, ctx)
-    junit_path = adir / "junit.xml"
-    report_path = adir / "plugin-report.json"
-    env.update({"FLOWTREE_REPORT": str(report_path), "FLOWTREE_RUN_ID": run_id, "FLOWTREE_ATTEMPT_ID": attempt_id})
-    exe = resolve_interpreter(entry, cwd, python, env)
+    runner = get_runner(entry.runner)
+    env.update(runner.env_additions(adir, run_id, attempt_id))
+    exe = runner.resolve_executable(entry, cwd, python, env)
     required = [t.nodeid for t in entry.tests]
 
     m: Dict[str, Any] = {
         "schema": 1, "run_id": run_id, "attempt_id": attempt_id, "story_id": story_id, "entry_id": entry.id,
         "state": AttemptState.RUNNING.value, "reason": None, "started_at": now_iso(), "finished_at": None,
         "timeout_s": entry.timeout_s, "story_path": str(story.path), "mapping_path": str(mapping.path),
+        "runner": runner.name, "evidence_kind": runner.evidence_kind,
         "command": {"argv": entry.argv, "resolved_executable": exe, "cwd": str(cwd), "project_root": str(project_root),
                     "pytest_addopts_removed": rc.removed_addopts},
         "baseline": baseline_to_dict(before), "baseline_after": None, "changed_during_run": False,
@@ -185,8 +157,7 @@ def run_attempt(
     def finish(state: AttemptState, reason: Optional[str]) -> Dict[str, Any]:
         m["state"], m["reason"], m["finished_at"] = state.value, reason, now_iso()
         arts = {}
-        for name, fname in (("plugin_report", "plugin-report.json"), ("junit", "junit.xml"),
-                            ("stdout", "stdout.txt"), ("stderr", "stderr.txt")):
+        for name, fname in runner.artifacts:
             p = adir / fname
             if p.exists():
                 arts[name] = {"path": fname, "sha256": sha256_file(p)}
@@ -205,23 +176,21 @@ def run_attempt(
         except ValueError:
             return finish(AttemptState.ERROR, f"cwd {cwd} is outside project root {project_root}")
         if exe is None:
-            return finish(AttemptState.BLOCKED, f"interpreter for {entry.argv[0]!r} not found (pass --python for the project's environment)")
-        py = probe_python(entry, exe, python)
-        if py:
-            info, perr = bl.probe_runtime(py, env)
-            if info is None:
-                return finish(AttemptState.BLOCKED, perr)
+            return finish(AttemptState.BLOCKED, f"executable for {entry.argv[0]!r} not found (pass --python for the project's Python environment, or use an absolute path / the pinned PATH)")
+        probe = runner.runtime(entry, exe, python, env, cwd, project_root)
+        if probe.error:   # 已知环境前置缺失 (解释器无 pytest、SDK 未初始化、依赖缓存缺失等): 阻塞, 不引导/联网
+            return finish(AttemptState.BLOCKED, probe.error)
 
-        cmd = build_command(entry, exe, junit_path)
+        cmd = runner.build_command(entry, exe, adir)
         m["command"]["full_argv"] = cmd
         t0 = time.time()
-        with open(adir / "stdout.txt", "wb") as so, open(adir / "stderr.txt", "wb") as se:
+        with open(adir / runner.stdout_file, "wb") as so, open(adir / "stderr.txt", "wb") as se:
             try:
                 proc = subprocess.Popen(cmd, cwd=str(cwd), env=env, stdout=so, stderr=se, start_new_session=True)
             except OSError as e:
                 return finish(AttemptState.ERROR, f"cannot start process: {e}")
             try:
-                rc = proc.wait(timeout=entry.timeout_s)
+                code = proc.wait(timeout=entry.timeout_s)
             except subprocess.TimeoutExpired:
                 m["cleanup"] = terminate_group(proc)
                 m["exit_code"] = proc.returncode
@@ -235,29 +204,19 @@ def run_attempt(
         # 命令正常结束后仍存活的同组成员是测试泄漏的进程: 一并清理并记录
         if _group_alive(proc.pid):
             m["cleanup"] = terminate_group(proc)
-        m["exit_code"] = rc
+        m["exit_code"] = code
         m["duration_s"] = round(time.time() - t0, 3)
 
-        report = None
-        if report_path.exists():
-            try:
-                report = json.loads(report_path.read_text(encoding="utf-8"))
-            except (OSError, ValueError):
-                report = None
-        junit, jerr = parse_junit(str(junit_path)) if junit_path.exists() else (None, "junit report missing")
-        c = classify(report, junit, jerr, run_id=run_id, attempt_id=attempt_id, cwd=str(cwd),
-                     returncode=rc, required_nodeids=required)
+        out = runner.classify(adir, run_id=run_id, attempt_id=attempt_id, cwd=str(cwd), returncode=code, required=required,
+                              runtime_now=lambda: runner.runtime(entry, exe, python, env, cwd, project_root))
+        c = out.classification
         m["outcomes"] = c.details
         m["counts"], m["junit_counts"] = c.counts, c.junit
         m["unmapped_nonpass"] = c.unmapped_nonpass
-        if report:
-            m["runtime"] = report.get("runtime")
-            m["pytest_rootdir"] = report.get("rootdir")
-            m["collected_count"] = len(report.get("collected", []))
-            m["deselected_count"] = len(report.get("deselected", []))
+        m.update(out.extra)
 
         # 实际运行时与执行前探测、与执行后基线是否一致
-        actual_runtime = (report or {}).get("runtime", {}).get("digest")
+        actual_runtime = out.actual_runtime_digest
         fresh = reload() if reload else None
         changed = []
         if fresh is None:
@@ -270,11 +229,11 @@ def run_attempt(
             changed.append("worktree")
         if before.story_digest != after.story_digest or before.entry_digest != after.entry_digest:
             changed.append("story/mapping")
-        # 插件没起来 (无报告) 时没有"实际运行时"可比, 沿用执行前探测值; 有报告则以实际为准并与探测比对
-        if report is not None and (actual_runtime is None or (before.runtime_digest and before.runtime_digest != actual_runtime)):
+        # runner 没有可比的"实际运行时"时 (pytest 插件没起来) 沿用执行前探测值; 否则以实际为准并与探测比对
+        if out.runtime_applicable and (actual_runtime is None or (before.runtime_digest and before.runtime_digest != actual_runtime)):
             changed.append("runtime")
         base = dict(m["baseline"])
-        if report is not None:
+        if out.runtime_applicable:
             base["runtime_digest"] = actual_runtime
         if changed:
             # 结果保留, 但基线不可信: 指纹置空 → 有效性 unknown, 不贡献当前通过

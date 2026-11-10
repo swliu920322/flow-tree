@@ -268,12 +268,18 @@
       const pre = h("pre", { class: "art", hidden: true });
       slot.replaceChildren(
         h("dl", { class: "kv" },
+          h("dt", { text: "运行器" }), h("dd", { text: `${a.runner || "pytest"}${a.evidence_kind ? " · " + a.evidence_kind : ""}` }),
           h("dt", { text: "命令" }), h("dd", { class: "mono", text: (cmd.full_argv || cmd.argv || []).join(" ") }),
           h("dt", { text: "工作目录" }), h("dd", { class: "mono", text: cmd.cwd || "—" }),
-          h("dt", { text: "pytest rootdir" }), h("dd", { class: "mono", text: a.pytest_rootdir || "—" }),
-          h("dt", { text: "收集/剔除" }), h("dd", { text: `${a.collected_count ?? "—"} / ${a.deselected_count ?? "—"}` }),
+          a.runner === "flutter" && a.flutter
+            ? [h("dt", { text: "事件协议" }), h("dd", { text: `${a.flutter.protocol_version} · 真实测试 ${a.flutter.real_test_count ?? "—"} · 会话 done.success=${a.flutter.done_success} · 隐藏事件 ${(a.flutter.hidden_events || []).length}` }),
+               h("dt", { text: "测试文件" }), h("dd", { class: "mono", text: (a.flutter.suites || []).join("、") || "—" })]
+            : [h("dt", { text: "pytest rootdir" }), h("dd", { class: "mono", text: a.pytest_rootdir || "—" }),
+               h("dt", { text: "收集/剔除" }), h("dd", { text: `${a.collected_count ?? "—"} / ${a.deselected_count ?? "—"}` })],
           h("dt", { text: "分类计数" }), h("dd", { text: JSON.stringify(a.counts || {}) }),
-          h("dt", { text: "运行时" }), h("dd", { text: `${rt.executable || "—"} · Python ${(rt.python_version || "").split(" ")[0]} · pytest ${rt.pytest_version || "—"} · 依赖 ${a.runtime_distribution_count} 个` }),
+          h("dt", { text: "运行时" }), h("dd", { text: a.runner === "flutter"
+            ? `${rt.flutter_path || "—"} · Flutter ${rt.flutter_version || "—"} · Dart ${rt.dart_version || "—"} · 引擎 ${short(rt.engine_revision, 10)} · 包 ${rt.package_count ?? "—"} 个（缓存源码未做内容校验）`
+            : `${rt.executable || "—"} · Python ${(rt.python_version || "").split(" ")[0]} · pytest ${rt.pytest_version || "—"} · 依赖 ${a.runtime_distribution_count} 个` }),
           h("dt", { text: "基线" }), h("dd", { class: "mono", text: `故事 ${short(b.story_digest)} · 条目 ${short(b.entry_digest)} · 代码 ${short(b.worktree_fingerprint)} · 运行时 ${short(b.runtime_digest)} · 环境 ${short(b.env_digest)}` }),
           h("dt", { text: "验证器" }), h("dd", { class: "mono", text: b.verifier || "—" }),
           h("dt", { text: "执行期间变化" }), h("dd", { text: a.changed_during_run && a.changed_during_run.length ? a.changed_during_run.join("、") : "无" }),

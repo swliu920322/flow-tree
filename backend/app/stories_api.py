@@ -18,7 +18,7 @@ from flowtree.workspace import Workspace, WorkspaceConfigError, load_workspaces 
 
 router = APIRouter(prefix="/api/workspaces", tags=["stories (read-only)"])
 SAFE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
-ARTIFACTS = ("plugin_report", "junit", "stdout", "stderr")
+ARTIFACTS = ("plugin_report", "junit", "stdout", "stderr", "events", "human")   # pytest: 前四个; flutter: events/human/stderr
 
 
 def _workspaces() -> Dict[str, Workspace]:

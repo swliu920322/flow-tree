@@ -100,7 +100,7 @@ def test_non_pytest_argv_rejected(tmp_path, stories, base):
 
 
 def test_unsupported_runner(tmp_path, stories, base):
-    base["entries"][0]["runner"] = "flutter"
+    base["entries"][0]["runner"] = "jest"
     assert "mapping.runner_unsupported" in codes(load(tmp_path, base, stories), ERROR)
 
 
