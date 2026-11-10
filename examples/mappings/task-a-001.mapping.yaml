@@ -74,3 +74,23 @@ entries:
   env:
     id: life-piggy-bank-flutter-widget
   timeout_s: 300
+- id: M-A-CLIENT-REENTRY
+  covers:
+  - TASK-A-001.STEP-04
+  level: client
+  runner: flutter
+  cwd: .
+  argv:
+  - flutter
+  - test
+  - test/page_reentry_and_review_wire_test.dart
+  tests:
+  - nodeid: 'test/page_reentry_and_review_wire_test.dart::TASK-A-001.STEP-04 零关系本人任务完成后退出任务页面再进入: 完成状态和积分保持一致
+      (同一登录会话) 完成后离开再进入: 任务仍完成、没有再次提交/发奖请求; A 积分 15.00 来自现有路径 loadData→refreshProfile(GET /auth/me), 重进时重新从服务端取回'
+    match: exact
+  - nodeid: 'test/page_reentry_and_review_wire_test.dart::TASK-A-001.STEP-04 零关系本人任务完成后退出任务页面再进入: 完成状态和积分保持一致
+      (同一登录会话) 离开期间服务端积分变化(例如另一设备): 重新进入后客户端显示服务端最新值, 证明 A 积分是重进时重新取回的, 不是仅靠同会话内存'
+    match: exact
+  env:
+    id: life-piggy-bank-flutter-widget
+  timeout_s: 300

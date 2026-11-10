@@ -41,3 +41,23 @@ entries:
   env:
     id: life-piggy-bank-flutter-widget
   timeout_s: 300
+- id: M-B-CLIENT-HISTORY
+  covers:
+  - TASK-B-001.STEP-04
+  level: client
+  runner: flutter
+  cwd: .
+  argv:
+  - flutter
+  - test
+  - test/page_reentry_and_review_wire_test.dart
+  tests:
+  - nodeid: test/page_reentry_and_review_wire_test.dart::TASK-B-001.STEP-04 执行人查看审批结果与提交历史 (发行人审批由测试模拟,
+      不是真实审批服务) 待审/驳回/重提阶段进度与奖励不增加; 批准后才增加; 历史 v1 保留原凭证与驳回原因, v2 为新凭证/已通过; GET 与界面一致
+    match: exact
+  - nodeid: 'test/page_reentry_and_review_wire_test.dart::TASK-B-001.STEP-04 执行人查看审批结果与提交历史 (发行人审批由测试模拟,
+      不是真实审批服务) 批准后 B 奖励只记入原发行人账本: 沿真实导航(切到商城 tab 触发 refreshProfile → 打开账户弹层)看到 爸爸 +25.00, 妈妈 保持 5.00'
+    match: exact
+  env:
+    id: life-piggy-bank-flutter-widget
+  timeout_s: 300

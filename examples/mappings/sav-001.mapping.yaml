@@ -71,3 +71,23 @@ entries:
   env:
     id: life-piggy-bank-flutter-widget
   timeout_s: 300
+- id: M-SAV-CLIENT-REENTRY
+  covers:
+  - SAV-001.STEP-04
+  level: client
+  runner: flutter
+  cwd: .
+  argv:
+  - flutter
+  - test
+  - test/page_reentry_and_review_wire_test.dart
+  tests:
+  - nodeid: 'test/page_reentry_and_review_wire_test.dart::SAV-001.STEP-04 成功记录后离开页面再重新进入: 进度和记录保持一致 (仅已知成功后)
+      成功后卸载页面与自建控制器, 新页面重新 GET: 余额/连续天数/记录列表与服务端及离开前一致, 重进不发任何写请求、不重复记录'
+    match: exact
+  - nodeid: 'test/page_reentry_and_review_wire_test.dart::SAV-001.STEP-04 成功记录后离开页面再重新进入: 进度和记录保持一致 (仅已知成功后)
+      离开期间服务端状态变化(另一设备又记了一笔): 重新进入显示服务端最新状态, 证明是重新取回而不是沿用旧页面内存'
+    match: exact
+  env:
+    id: life-piggy-bank-flutter-widget
+  timeout_s: 300
