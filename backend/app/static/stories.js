@@ -53,7 +53,7 @@
                    xpassed: "意外通过(xpass)", missing: "缺失" };
   const VALIDITY = { current: "有效", stale: "待更新", unknown: "无法确认" };
   const ASPECT = { story: "故事内容", mapping_entry: "映射条目", env_id: "环境标识", worktree: "工作区代码",
-                   runtime: "运行时与依赖", verifier: "验证器版本", environment: "环境变量配置" };
+                   runtime: "运行时与依赖", verifier: "验证器版本", environment: "环境变量配置", context: "执行上下文策略" };
   const ASPECT_STATE = { same: "一致", changed: "不同", unknown: "无法确认" };
   const KIND = { validation: "输入校验", recovery: "恢复", boundary: "边界", permission: "权限", concurrency: "并发" };
 
@@ -170,7 +170,7 @@
       h("dt", { text: "证据有效性" }), h("dd", { text: `有效 ${o.current} · 待更新 ${o.stale} · 无法确认 ${o.unknown}（按映射条目计）` }),
       h("dt", { text: "项目" }), h("dd", { text: c.project_root }),
       h("dt", { text: "解释器" }), h("dd", { text: c.python || "未配置" }),
-      h("dt", { text: "执行上下文" }), h("dd", { text: `环境变量 ${c.execution_context.env_names.join(", ") || "无"}；git excludes ${c.execution_context.git_excludes_configured ? "已配置" : "未配置"}（只显示名称）` }),
+      h("dt", { text: "执行上下文" }), h("dd", { text: `${c.execution_context.mode === "pinned" ? "固定环境(pinned)" : "继承宿主环境(inherit)"}；声明变量 ${(c.execution_context.env_names || []).join(", ") || "无"}；取自宿主 ${(c.execution_context.env_from_host || []).join(", ") || "无"}；git excludes ${c.execution_context.git_excludes_configured ? "已配置" : "未配置"}${c.execution_context.git_isolated ? "、git 已隔离" : ""}（只显示名称）` }),
       h("dt", { text: "能否判定有效性" }), h("dd", { text: r.can_determine_validity ? "可以（只读比较）" : `不能：${[...r.undetermined_aspects.map((a) => ASPECT[a] || a), ...r.workspace_problems].join("；")}` }),
     );
     $("ctx").replaceChildren(h("details", { class: "card ctx", open: o.current === 0 || null },

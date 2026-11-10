@@ -12,8 +12,11 @@ workspaces:
     stories: [examples/stories]
     mappings: [examples/mappings]
     execution_context:
-      env:                                  # 执行 verify 时额外设置/覆盖的环境变量
+      mode: pinned          # inherit (默认): 宿主环境 + 覆盖项, 与此前行为一致; pinned: 子进程只拿到下面声明的变量
+      env:                  # 字面值, 非机密。疑似密钥/凭据 (含 URL 内嵌密码) 会被配置校验拒绝
         ENVIRONMENT: test
         DATABASE_URL: "sqlite+aiosqlite:///:memory:"
         PYTHONDONTWRITEBYTECODE: "1"
-      git_excludes_file: /absolute/path/to/git-excludes   # 可选: 仅对 FlowTree 的 git 调用生效的 core.excludesFile
+      env_from_host: []     # 机密/凭据只写变量名, 值在运行/重检时从启动进程的宿主环境读取, 永不落盘; 缺失 → 执行 blocked / 重检 unknown
+      # pinned_path: "/usr/bin:/bin"    # 仅 pinned, 可选; 默认 /usr/bin:/bin:/usr/sbin:/sbin
+      git_excludes_file: /absolute/path/to/git-excludes   # 可选: git 排除规则 (pinned 下同时隔离宿主的系统/全局 git 配置)

@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from .canon import YamlLoadError, load_yaml_file
+from .context import ContextSpec
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_CONFIG = REPO_ROOT / ".flowtree" / "workspaces.yaml"
@@ -31,16 +32,14 @@ class Workspace:
     mappings: List[Path]
     env: Dict[str, str] = field(default_factory=dict)
     git_excludes_file: Optional[Path] = None
+    mode: str = "inherit"
+    env_from_host: List[str] = field(default_factory=list)
+    pinned_path: Optional[str] = None
 
-    def execution_env(self) -> Dict[str, str]:
-        """重检时叠加在服务进程环境之上的覆盖项 (与 Codex/verify 执行时的做法一致: 额外的 GIT_CONFIG_*)。"""
-        env = dict(self.env)
-        if self.git_excludes_file:
-            count = int(os.environ.get("GIT_CONFIG_COUNT", "0") or 0)
-            env["GIT_CONFIG_COUNT"] = str(count + 1)
-            env[f"GIT_CONFIG_KEY_{count}"] = "core.excludesFile"
-            env[f"GIT_CONFIG_VALUE_{count}"] = str(self.git_excludes_file)
-        return env
+    def context(self) -> ContextSpec:
+        """CLI 执行/状态与 Web 只读重检共用的唯一上下文声明 (解析见 flowtree.context.resolve)。"""
+        return ContextSpec(mode=self.mode, env=dict(self.env), env_from_host=tuple(self.env_from_host),
+                           pinned_path=self.pinned_path, git_excludes_file=self.git_excludes_file)
 
     def env_names(self) -> List[str]:
         return sorted(self.env)
@@ -98,6 +97,12 @@ def load_workspaces(path: Optional[Path] = None) -> Dict[str, Workspace]:
         env = ctx.get("env") or {}
         if not isinstance(env, dict) or any(not isinstance(k, str) or not ENV_NAME_RE.match(k) for k in env):
             raise WorkspaceConfigError(f"{where}: execution_context.env must map valid variable names to values")
+        unknown = set(ctx) - {"mode", "env", "env_from_host", "pinned_path", "git_excludes_file"}
+        if unknown:
+            raise WorkspaceConfigError(f"{where}: unknown execution_context fields {sorted(unknown)}")
+        from_host = ctx.get("env_from_host") or []
+        if not isinstance(from_host, list) or any(not isinstance(x, str) for x in from_host):
+            raise WorkspaceConfigError(f"{where}: execution_context.env_from_host must be a list of variable names")
         ge = ctx.get("git_excludes_file")
         out[wid] = Workspace(
             id=wid, name=str(w.get("name") or wid), project_root=resolve(w["project_root"]).resolve(),
@@ -105,5 +110,9 @@ def load_workspaces(path: Optional[Path] = None) -> Dict[str, Workspace]:
             stories=[resolve(x) for x in (w["stories"] if isinstance(w["stories"], list) else [w["stories"]])],
             mappings=[resolve(x) for x in (w["mappings"] if isinstance(w["mappings"], list) else [w["mappings"]])],
             env={k: str(v) for k, v in env.items()}, git_excludes_file=resolve(ge) if ge else None,
+            mode=str(ctx.get("mode") or "inherit"), env_from_host=list(from_host), pinned_path=ctx.get("pinned_path"),
         )
+        bad = out[wid].context().validate()
+        if bad:
+            raise WorkspaceConfigError(f"{where}: execution_context: " + "; ".join(bad))
     return out

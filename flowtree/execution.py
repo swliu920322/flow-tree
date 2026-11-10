@@ -19,6 +19,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from . import baseline as bl
 from .evidence import EvidenceStore, baseline_to_dict, now_iso, sha256_file
+from .context import ContextSpec, resolve as resolve_context
 from .mapping import Entry, LoadedMapping, _pytest_args
 from .pytest_report import classify, parse_junit
 from .status import AttemptState, Baseline
@@ -30,12 +31,8 @@ KILL_WAIT_S = 5
 
 
 def child_env(extra: Optional[Dict[str, str]] = None) -> Dict[str, str]:
-    """extra: 工作区声明的执行上下文覆盖项 (与执行时一致才能重检)。"""
-    env = dict(os.environ)
-    env.update(extra or {})
-    env.pop("PYTEST_ADDOPTS", None)
-    env["PYTHONPATH"] = os.pathsep.join(filter(None, [str(bl.PLUGIN_DIR), env.get("PYTHONPATH")]))
-    return env
+    """兼容入口: 等价于 inherit 模式下带覆盖项的 resolve()。新代码应直接使用 flowtree.context.resolve。"""
+    return resolve_context(ContextSpec(env=dict(extra or {}))).env
 
 
 def resolve_interpreter(entry: Entry, project_cwd: Path, python: Optional[str], env: Dict[str, str]) -> Optional[str]:
@@ -69,11 +66,12 @@ def build_command(entry: Entry, exe: str, junit_path: Path) -> List[str]:
 def current_baseline(
     story: LoadedStory, mapping: LoadedMapping, entry: Entry, project_root: Path,
     python: Optional[str], runtime_cache: Optional[Dict[str, Optional[str]]] = None,
-    spec_files: frozenset = frozenset(), extra_env: Optional[Dict[str, str]] = None, readonly: bool = False,
+    spec_files: frozenset = frozenset(), ctx: Optional[ContextSpec] = None, readonly: bool = False,
 ) -> Baseline:
     """现在的基线 (用于 verify 前后比较, 以及 status 判断历史证据是否仍适用)。
     readonly=True: 不在被测项目里创建任何文件 (环境盐缺失 → env_digest 为 None → 有效性 unknown)。"""
-    env = child_env(extra_env)
+    rc = resolve_context(ctx)
+    env, genv = rc.env, rc.effective_git_env
     cwd = (project_root / entry.cwd).resolve() if not os.path.isabs(entry.cwd) else Path(entry.cwd)
     exe = resolve_interpreter(entry, cwd, python, env)
     py = probe_python(entry, exe, python)
@@ -84,13 +82,15 @@ def current_baseline(
             info, _ = bl.probe_runtime(py, env)
             cache[py] = info["digest"] if info else None
         runtime = cache[py]
-    fp = bl.worktree_fingerprint(cwd, spec_files, env) if cwd.exists() else None
+    fp = bl.worktree_fingerprint(cwd, spec_files, genv) if cwd.exists() else None
     salt = bl.env_salt(project_root, create=not readonly)
-    env_d = bl.env_digest(bl.env_vars_map(env, entry.env.ignore, salt)) if salt is not None else None
+    # 上下文未能完整解析 (缺必需宿主变量等): 实际环境不完整, 不能取摘要 → unknown, 不退回宿主环境
+    env_d = bl.env_digest(bl.env_vars_map(env, entry.env.ignore, salt)) if salt is not None and not rc.problems else None
     return Baseline(
         story_digest=story.digest, entry_digest=mapping.entry_digests[entry.id], env_id=entry.env.id,
-        worktree_fingerprint=fp, git_sha=bl.git_head(cwd, env) if cwd.exists() else None,
+        worktree_fingerprint=fp, git_sha=bl.git_head(cwd, genv) if cwd.exists() else None,
         mapping_digest=mapping.digest, runtime_digest=runtime, verifier=VERIFIER, env_digest=env_d,
+        context_digest=rc.context_digest,
     )
 
 
@@ -149,18 +149,19 @@ def run_attempt(
     store: EvidenceStore, run_id: str, story: LoadedStory, mapping: LoadedMapping, entry: Entry,
     project_root: Path, python: Optional[str] = None,
     reload: Optional[Callable[[], Optional[Tuple[LoadedStory, LoadedMapping, Entry]]]] = None,
-    spec_files: frozenset = frozenset(),
+    spec_files: frozenset = frozenset(), ctx: Optional[ContextSpec] = None,
 ) -> Dict[str, Any]:
     """reload: 从磁盘重新读取 (故事, 映射, 条目); 用于发现子进程运行期间输入被修改。缺省视为无法确认。"""
     story_id = story.story.id
     attempt_id = f"{run_id}.{story_id}.{entry.id}"
     adir = store.attempt_dir(run_id, story_id, entry.id)
     adir.mkdir(parents=True, exist_ok=True)
-    env = child_env()
+    rc = resolve_context(ctx)
+    env = dict(rc.env)
     env_base = dict(env)  # 不含本次尝试专属的 FLOWTREE_* 注入
     cwd = (project_root / entry.cwd).resolve() if not os.path.isabs(entry.cwd) else Path(entry.cwd)
     runtime_cache: Dict[str, Optional[str]] = {}
-    before = current_baseline(story, mapping, entry, project_root, python, runtime_cache, spec_files)
+    before = current_baseline(story, mapping, entry, project_root, python, runtime_cache, spec_files, ctx)
     junit_path = adir / "junit.xml"
     report_path = adir / "plugin-report.json"
     env.update({"FLOWTREE_REPORT": str(report_path), "FLOWTREE_RUN_ID": run_id, "FLOWTREE_ATTEMPT_ID": attempt_id})
@@ -172,11 +173,12 @@ def run_attempt(
         "state": AttemptState.RUNNING.value, "reason": None, "started_at": now_iso(), "finished_at": None,
         "timeout_s": entry.timeout_s, "story_path": str(story.path), "mapping_path": str(mapping.path),
         "command": {"argv": entry.argv, "resolved_executable": exe, "cwd": str(cwd), "project_root": str(project_root),
-                    "pytest_addopts_removed": os.environ.get("PYTEST_ADDOPTS")},
+                    "pytest_addopts_removed": rc.removed_addopts},
         "baseline": baseline_to_dict(before), "baseline_after": None, "changed_during_run": False,
         "required_nodeids": required, "outcomes": {}, "counts": {}, "junit_counts": {}, "unmapped_nonpass": {},
         "exit_code": None, "artifacts": {}, "cleanup": None,
         "env_vars": bl.env_vars_map(env_base, entry.env.ignore, bl.env_salt(project_root)),
+        "context": rc.summary(),   # 模式/变量名/布尔, 不含任何值
     }
     store.write_manifest(m)  # 开始记录先于执行落盘
 
@@ -194,6 +196,8 @@ def run_attempt(
 
     proc = None
     try:
+        if rc.problems:   # 必需配置缺失: 明确阻塞, 不退回宿主环境
+            return finish(AttemptState.BLOCKED, "execution context unresolved: " + "; ".join(rc.problems))
         if not cwd.exists() or not cwd.is_dir():
             return finish(AttemptState.BLOCKED, f"cwd does not exist: {cwd}")
         try:
@@ -260,7 +264,7 @@ def run_attempt(
             changed.append("story/mapping unreadable after run")
             after = before
         else:
-            after = current_baseline(*fresh, project_root, python, runtime_cache, spec_files)
+            after = current_baseline(*fresh, project_root, python, runtime_cache, spec_files, ctx)
         m["baseline_after"] = baseline_to_dict(after)
         if before.worktree_fingerprint != after.worktree_fingerprint or after.worktree_fingerprint is None:
             changed.append("worktree")

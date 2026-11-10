@@ -43,7 +43,7 @@ def _build(ws: Workspace):
         issues.extend(m.issues)
     spec_files = service._spec_files(ws.stories, ws.mappings)
     state = service.collect_state(stories, mappings, ws.project_root, ws.python, spec_files,
-                                  ws.execution_env(), readonly=True)
+                                  ws.context(), readonly=True)
     return {"stories": stories, "mappings": mappings, "issues": issues, "state": state, "problems": ws.problems()}
 
 
@@ -51,7 +51,7 @@ def cache_key(ws: Workspace) -> str:
     """缓存身份 = 所有会影响结果的工作区配置, 而不只是 id: 配置变化(换项目/路径/解释器/执行上下文)后旧结果不得复用。
     环境变量只参与键, 不会被存储或输出。"""
     return repr((ws.id, str(ws.project_root), ws.python, tuple(map(str, ws.stories)), tuple(map(str, ws.mappings)),
-                 tuple(sorted(ws.env.items())), str(ws.git_excludes_file)))
+                 ws.context().identity()))
 
 
 def get_state(ws: Workspace, refresh: bool = False):
@@ -158,13 +158,16 @@ def _context(ws: Workspace, data) -> Dict[str, Any]:
                 if r == "unknown":
                     unknown_aspects.add(a)
         overview[v.value if v else "unknown"] += 1
-    problems = data["problems"]
+    problems = data["problems"] + st.context_problems
     can_determine = not problems and not unknown_aspects
     return {
         "checked_at": st.checked_at,
         "project_root": str(ws.project_root),
         "python": ws.python,
-        "execution_context": {"env_names": ws.env_names(), "git_excludes_configured": ws.git_excludes_file is not None},
+        "execution_context": {"mode": st.context.get("mode"), "env_names": st.context.get("env_names"),
+                              "env_from_host": st.context.get("env_from_host"),
+                              "git_excludes_configured": st.context.get("git_excludes_configured"),
+                              "git_isolated": st.context.get("git_isolated"), "problems": st.context_problems},
         "validity_overview": overview,
         "recheck": {
             "can_determine_validity": can_determine,

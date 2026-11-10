@@ -22,7 +22,7 @@ from .status import AttemptState, Baseline, EntryEvidence, TestOutcome
 MANIFEST_SCHEMA = 1
 RUNNING_GRACE_S = 120
 BASELINE_FIELDS = ("story_digest", "entry_digest", "env_id", "worktree_fingerprint",
-                   "git_sha", "mapping_digest", "runtime_digest", "verifier", "env_digest")
+                   "git_sha", "mapping_digest", "runtime_digest", "verifier", "env_digest", "context_digest")
 _RUN_TS = re.compile(r"^run_(\d{8})T(\d{6})_")
 
 

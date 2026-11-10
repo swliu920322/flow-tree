@@ -157,6 +157,10 @@ def _print_units(res):
         print("\n最近一次真实命令存在失败 (与逐场景结果分开呈现):")
         for c in res["command_failures"]:
             print(f"  ⚠️  {c['story']}/{c['entry']} exit={c['exit_code']} 未映射失败={c['unmapped_nonpass']}")
+    if res.get("context_problems"):
+        print("\n执行上下文无法完整解析 (有效性无法确认, 执行会被阻塞; 不会退回宿主环境):")
+        for p in res["context_problems"]:
+            print(f"  ❌ {p}")
     if res.get("evidence_problems"):
         print("\n证据问题 (这些尝试按 error 处理):")
         for p in res["evidence_problems"]:
@@ -168,7 +172,10 @@ def _print_units(res):
 def cmd_verify(args):
     stories, mappings = _story_paths(args)
     res = service.verify(stories, mappings, Path(args.project_root), args.python, args.mapped_only, args.entry)
-    if args.json:
+    return _render_verify(res, args.json)
+
+def _render_verify(res, as_json):
+    if as_json:
         print(json.dumps(res, ensure_ascii=False, indent=2))
         return 0 if res["ok"] else 1
     if not res["executed"]:
@@ -190,12 +197,78 @@ def cmd_verify(args):
 def cmd_story_status(args):
     stories, mappings = _story_paths(args)
     res = service.status(stories, mappings, Path(args.project_root), args.python)
-    if args.json:
+    return _render_status(res, args.json)
+
+def _render_status(res, as_json):
+    if as_json:
         print(json.dumps(res, ensure_ascii=False, indent=2))
         return 0 if res["ok"] else 1
     print("📊 当前证据状态 (不执行测试)")
     _print_units(res)
     return 0 if res["ok"] else 1
+
+# ---- workspace: 故事/映射/项目根/解释器/执行上下文全部来自同一份工作区配置 ----
+
+def _load_ws(args):
+    from flowtree.workspace import WorkspaceConfigError, config_path, load_workspaces
+    path = Path(args.config) if getattr(args, "config", None) else None
+    try:
+        all_ws = load_workspaces(path)
+    except WorkspaceConfigError as e:
+        print(f"❌ 工作区配置错误: {e}")
+        return None
+    if getattr(args, "workspace", None) is None:
+        return all_ws
+    ws = all_ws.get(args.workspace)
+    if ws is None:
+        print(f"❌ 工作区 {args.workspace!r} 不存在于 {path or config_path()} (已有: {sorted(all_ws) or '无'})")
+    return ws
+
+def cmd_ws_list(args):
+    all_ws = _load_ws(args)
+    if all_ws is None:
+        return 1
+    if args.json:
+        print(json.dumps([{"id": w.id, "name": w.name, "project_root": str(w.project_root), "mode": w.mode,
+                           "problems": w.problems()} for w in all_ws.values()], ensure_ascii=False, indent=2))
+        return 0
+    for w in all_ws.values():
+        print(f"{w.id:<24} {w.name:<20} 模式={w.mode:<8} {w.project_root}" + (f"  ⚠️ {'; '.join(w.problems())}" if w.problems() else ""))
+    return 0
+
+def cmd_ws_context(args):
+    from flowtree.context import resolve
+    ws = _load_ws(args)
+    if ws is None:
+        return 1
+    rc = resolve(ws.context())
+    out = {**rc.summary(), "workspace_problems": ws.problems(), "python": ws.python}
+    if args.json:
+        print(json.dumps(out, ensure_ascii=False, indent=2))
+    else:
+        print(f"工作区 {ws.id}: 模式 {out['mode']}; 字面变量 {out['env_names']}; 取自宿主 {out['env_from_host']}; "
+              f"git 排除 {'已配置' if out['git_excludes_configured'] else '未配置'}; git 隔离 {'是' if out['git_isolated'] else '否'}")
+        print(f"  context_digest: {out['context_digest']}  (只含名称与策略, 不含值)")
+        for p in out["problems"] + out["workspace_problems"]:
+            print(f"  ❌ {p}")
+    return 1 if (out["problems"] or out["workspace_problems"]) else 0
+
+def cmd_ws_status(args):
+    ws = _load_ws(args)
+    if ws is None:
+        return 1
+    return _render_status(service.status(ws.stories, ws.mappings, ws.project_root, ws.python, ws.context()), args.json)
+
+def cmd_ws_verify(args):
+    ws = _load_ws(args)
+    if ws is None:
+        return 1
+    bad = ws.problems()
+    if bad:
+        print("❌ 工作区配置不可用, 未执行: " + "; ".join(bad))
+        return 1
+    res = service.verify(ws.stories, ws.mappings, ws.project_root, ws.python, args.mapped_only, args.entry, ws.context())
+    return _render_verify(res, args.json)
 
 def main(argv=None):
     parser = argparse.ArgumentParser(
@@ -249,6 +322,23 @@ def main(argv=None):
     sp = story_sub.add_parser("status", help="读取已有证据并结合当前基线展示状态 (不执行)")
     add_exec_args(sp)
     sp.set_defaults(func=cmd_story_status)
+
+    p_ws = subparsers.add_parser("workspace", aliases=["ws"], help="按工作区配置执行/查看: 故事、映射、项目根、解释器、环境由同一配置解析")
+    ws_sub = p_ws.add_subparsers(dest="ws_command", required=True)
+    sp = ws_sub.add_parser("list", help="列出工作区")
+    sp.add_argument("--config", help="工作区配置路径 (默认 FLOWTREE_WORKSPACES 或 .flowtree/workspaces.yaml)")
+    sp.add_argument("--json", action="store_true"); sp.set_defaults(func=cmd_ws_list)
+    for name, fn, helptext in (("context", cmd_ws_context, "显示解析后的执行上下文 (只有名称与策略, 不含值) 与配置问题"),
+                               ("status", cmd_ws_status, "读取证据并按该上下文判断有效性 (不执行, 不写被测项目)"),
+                               ("verify", cmd_ws_verify, "在该上下文中真实执行映射的 pytest 并保存证据")):
+        sp = ws_sub.add_parser(name, help=helptext)
+        sp.add_argument("workspace", help="工作区 ID")
+        sp.add_argument("--config", help="工作区配置路径")
+        sp.add_argument("--json", action="store_true")
+        if name == "verify":
+            sp.add_argument("--mapped-only", action="store_true")
+            sp.add_argument("--entry", action="append", help="STORY/ENTRY 或不重名的 ENTRY, 可重复")
+        sp.set_defaults(func=fn)
 
     parsed = parser.parse_args(argv)
     sys.exit(parsed.func(parsed) or 0)

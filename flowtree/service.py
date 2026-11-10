@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional
 
 from .issues import Issue, has_errors
 from .mapping import LoadedMapping, load_mappings
-from .status import compute_units, summarize
+from .status import compare_aspects, compute_units, summarize
 from .story import collect_yaml_files, empty_input_issues, load_stories
 
 
@@ -136,15 +136,18 @@ class State:
     env_now: Dict[Any, Any] = field(default_factory=dict)       # (story, entry) -> 当前环境变量 HMAC 映射
     records: Dict[Any, Any] = field(default_factory=dict)       # (story, entry) -> 最新 AttemptRecord (含 manifest)
     problems: List[str] = field(default_factory=list)
+    context_problems: List[str] = field(default_factory=list)   # 执行上下文无法完整解析 (缺必需宿主变量等)
+    context: Dict[str, Any] = field(default_factory=dict)       # 上下文摘要 (名称/布尔, 无值)
     checked_at: str = ""
 
 
 def collect_state(stories, mappings, project_root: Path, python: Optional[str], spec_files: frozenset = frozenset(),
-                  extra_env: Optional[Dict[str, str]] = None, readonly: bool = True) -> State:
+                  ctx=None, readonly: bool = True) -> State:
     from datetime import datetime, timezone
     from .evidence import EvidenceStore, latest_record
     from . import baseline as bl
-    from .execution import child_env, current_baseline
+    from .context import resolve as resolve_context
+    from .execution import current_baseline
 
     root = Path(project_root).resolve()
     store = EvidenceStore(root, readonly=readonly)
@@ -152,7 +155,9 @@ def collect_state(stories, mappings, project_root: Path, python: Optional[str], 
     st = State(checked_at=datetime.now(timezone.utc).isoformat())
     runtime_cache: Dict[str, Any] = {}
     salt = bl.env_salt(root, create=not readonly)
-    env = child_env(extra_env)
+    rc = resolve_context(ctx)
+    env = rc.env
+    st.context, st.context_problems = rc.summary(), list(rc.problems)
     for lm in mappings:
         if lm.mapping is None or lm.mapping.story not in stories.stories:
             continue
@@ -164,28 +169,34 @@ def collect_state(stories, mappings, project_root: Path, python: Optional[str], 
             if ev is not None:
                 st.evidence[key] = ev
                 st.records[key] = latest_record(all_records[0], *key)
-            st.current[key] = current_baseline(ls, lm, e, root, python, runtime_cache, spec_files, extra_env, readonly)
-            st.env_now[key] = bl.env_vars_map(env, e.env.ignore, salt) if salt is not None else {}
+            st.current[key] = current_baseline(ls, lm, e, root, python, runtime_cache, spec_files, ctx, readonly)
+            st.env_now[key] = bl.env_vars_map(env, e.env.ignore, salt) if salt is not None and not rc.problems else {}
     st.problems = sorted(set(st.problems))
     return st
 
 
 def _status_core(stories, mappings, project_root: Path, python: Optional[str], spec_files: frozenset = frozenset(),
-                 extra_env: Optional[Dict[str, str]] = None):
-    state = collect_state(stories, mappings, project_root, python, spec_files, extra_env, readonly=True)
+                 ctx=None):
+    state = collect_state(stories, mappings, project_root, python, spec_files, ctx, readonly=True)
     evidence, current, env_now, problems = state.evidence, state.current, state.env_now, state.problems
     out, all_views = [], {}
     for sid, ls in stories.stories.items():
         views = compute_units(ls, mappings, evidence, current)
         all_views[sid] = views
         units = _units_out(views)
-        for u in units:  # 环境配置变化时指出是哪些变量 (只有名称, 不暴露值)
+        for u in units:  # 逐维度说明; 环境配置变化时指出是哪些变量 (只有名称, 不暴露值)
             for e in u["entries"]:
-                if any("environment configuration" in r for r in e["validity_reasons"]):
-                    old, new = evidence[(sid, e["entry"])].env_vars, env_now[(sid, e["entry"])]
-                    names = sorted(k for k in set(old) | set(new) if old.get(k) != new.get(k))
-                    if names:
-                        e["validity_reasons"].append("changed environment variables: " + ", ".join(names)
+                key = (sid, e["entry"])
+                ev = evidence.get(key)
+                e["aspects"], e["changed_env_names"] = None, []
+                if ev is None or ev.corrupt or key not in current:
+                    continue
+                e["aspects"] = compare_aspects(ev.baseline, current[key])
+                if e["aspects"]["environment"] == "changed":
+                    old, new = ev.env_vars, env_now[key]
+                    e["changed_env_names"] = sorted(k for k in set(old) | set(new) if old.get(k) != new.get(k))
+                    if e["changed_env_names"]:
+                        e["validity_reasons"].append("changed environment variables: " + ", ".join(e["changed_env_names"])
                                                      + " (declare irrelevant ones under env.ignore)")
         out.append({"id": sid, "digest": ls.digest, "summary": summarize(views), "units": units})
     command_failures = [
@@ -193,16 +204,18 @@ def _status_core(stories, mappings, project_root: Path, python: Optional[str], s
         for k, ev in sorted(evidence.items())
         if not ev.corrupt and ev.state.value == "completed" and ev.exit_code not in (0, None)
     ]
-    return out, all_views, problems, command_failures
+    return out, all_views, problems, command_failures, state
 
 
 def status(story_paths: List[Path], mapping_paths: Optional[List[Path]], project_root: Path,
-           python: Optional[str] = None) -> Dict[str, Any]:
+           python: Optional[str] = None, ctx=None) -> Dict[str, Any]:
     """读取已有证据并结合当前基线展示状态。不执行测试; 成功读取即 ok, 与是否存在未验项无关。"""
     stories, mappings, issues = _load(story_paths, mapping_paths)
-    out, _, problems, cmd_fail = _status_core(stories, mappings, project_root, python, _spec_files(story_paths, mapping_paths))
+    out, _, problems, cmd_fail, state = _status_core(stories, mappings, project_root, python,
+                                                     _spec_files(story_paths, mapping_paths), ctx)
     return {"ok": not has_errors(issues), "executed": False, "stories": out, "command_failures": cmd_fail,
-            "evidence_problems": problems, "issues": _issues_out(issues)}
+            "evidence_problems": problems, "context": state.context, "context_problems": state.context_problems,
+            "issues": _issues_out(issues)}
 
 
 def _resolve_entries(mappings, tokens):
@@ -233,7 +246,7 @@ def _not_executed(issues, reason, extra_issues=()):
 
 def verify(story_paths: List[Path], mapping_paths: List[Path], project_root: Path,
            python: Optional[str] = None, mapped_only: bool = False,
-           entry_ids: Optional[List[str]] = None) -> Dict[str, Any]:
+           entry_ids: Optional[List[str]] = None, ctx=None) -> Dict[str, Any]:
     """对选中的映射条目各执行一次 (单次 attempt, 无自动重试), 然后按当前基线汇总。
     执行前先解析并校验范围: 输入有 error、选择未知/歧义、或没有任何可执行条目/必需单元 → 不执行, 非成功。
     ok 同时要求: 必需范围内每个单元本次自动验证均 passed (默认必需范围=所给故事的全部单元; 选了 --entry 则为
@@ -273,14 +286,14 @@ def verify(story_paths: List[Path], mapping_paths: List[Path], project_root: Pat
                         return st2.stories[_ls.story.id], m2, next(e for e in m2.mapping.entries if e.id == _eid)
                 return None
 
-            m = run_attempt(store, run_id, ls, lm, entry, project_root, python, reload, spec_files)
+            m = run_attempt(store, run_id, ls, lm, entry, project_root, python, reload, spec_files, ctx)
             clean = m["state"] == "completed" and m["exit_code"] == 0
             attempts.append({"entry": f"{ls.story.id}/{entry.id}", "state": m["state"], "reason": m["reason"],
                              "exit_code": m["exit_code"], "counts": m["counts"], "command_clean": clean,
                              "unmapped_nonpass": m["unmapped_nonpass"], "cleanup": m["cleanup"],
                              "changed_during_run": m["changed_during_run"],
                              "manifest": str(store.attempt_dir(run_id, ls.story.id, entry.id) / "manifest.json")})
-    out, all_views, problems, cmd_fail = _status_core(stories, mappings, project_root, python, spec_files)
+    out, all_views, problems, cmd_fail, state = _status_core(stories, mappings, project_root, python, spec_files, ctx)
 
     required = [v for views in all_views.values() for v in views
                 if (v.unit_id in covered if entry_ids else (v.automation.value != "unmapped" if mapped_only else True))]
@@ -292,5 +305,6 @@ def verify(story_paths: List[Path], mapping_paths: List[Path], project_root: Pat
     return {"ok": required_ok and commands_ok and not problems, "executed": True, "run_id": run_id,
             "attempts": attempts, "stories": out, "command_failures": cmd_fail,
             "evidence_problems": problems, "issues": _issues_out(issues),
+            "context": state.context, "context_problems": state.context_problems,
             "required_units": len(required), "required_passed": sum(v.automation.value == "passed" for v in required),
             "commands_clean": commands_ok}

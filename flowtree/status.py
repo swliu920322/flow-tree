@@ -108,6 +108,8 @@ class Baseline:
     verifier: Optional[str] = None
     # 传给被测进程的环境配置摘要 (名称+值的 HMAC, 不含明文); env.id 只是标签, 不能代替配置一致性
     env_digest: Optional[str] = None
+    # 执行上下文策略摘要 (仅 pinned 模式非空; None = inherit/旧证据, 是合法取值而非"未知")。换模式或改策略即失效
+    context_digest: Optional[str] = None
 
 
 def evaluate_validity(evidence: Baseline, current: Baseline) -> Tuple[Validity, List[str]]:
@@ -129,6 +131,8 @@ def evaluate_validity(evidence: Baseline, current: Baseline) -> Tuple[Validity, 
             unknown.append(f"{label} cannot be determined")
         elif a != b:
             stale.append(f"{label} changed")
+    if evidence.context_digest != current.context_digest:   # None 是合法取值 (inherit/旧证据), 不同即失效
+        stale.append("execution context policy changed")
     if stale:
         return Validity.STALE, stale
     if unknown:
@@ -149,6 +153,7 @@ def compare_aspects(evidence: Baseline, current: Baseline) -> Dict[str, str]:
         ("environment", evidence.env_digest, current.env_digest),
     ):
         out[label] = "unknown" if a is None or b is None else ("same" if a == b else "changed")
+    out["context"] = "same" if evidence.context_digest == current.context_digest else "changed"
     return out
 
 
