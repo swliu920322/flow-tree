@@ -1,0 +1,64 @@
+schema_version: '0.1'
+id: TASK-A-001
+title: 零关系用户完成个人 A 任务
+actor: 已登录且没有关系的用户
+goal: 独立创建和完成自己的自律任务
+sources:
+- path: USER_STORY_MAP.md
+  anchor: US-09
+- path: USER_STORY_MAP.md
+  anchor: US-17
+- path: USER_STORY_MAP.md
+  anchor: US-23
+preconditions:
+- 隔离用户没有家庭关系；A 积分初始为 0.00
+- 本例任务目标一次，奖励 15.00；不是所有任务的默认配置
+inputs:
+  reward:
+    type: decimal
+    value: '15.00'
+    max_scale: 2
+  target_count:
+    type: integer
+    value: 1
+clock:
+  now: '2026-01-01T09:00:00'
+  tz: Asia/Kuala_Lumpur
+main_flow:
+- id: STEP-01
+  action: 在客户端打开任务创建入口
+  expected:
+  - 无关系用户仍能进入 A 任务创建流程
+- id: STEP-02
+  action: 创建指派给本人的一次目标 A 任务
+  expected:
+  - 任务可查询，状态为待办
+- id: STEP-03
+  action: 完成任务并提交
+  expected:
+  - 任务状态为完成，A 积分为 15.00，A 账本对账差额为 0.00
+- id: STEP-04
+  action: 退出任务页面再进入
+  expected:
+  - 完成状态和积分保持一致
+branches:
+- id: CASE-01
+  at: STEP-02
+  kind: validation
+  condition: 零关系用户试图将 B 任务指派给未绑定的他人
+  expected:
+  - 拒绝未生效关系的 B 任务指派
+  continuation:
+    type: end
+- id: CASE-02
+  at: STEP-03
+  kind: validation
+  condition: 完成后重复提交
+  expected:
+  - 不重复发放 A 奖励
+  continuation:
+    type: end
+invariants:
+- 任务属于本人；无需先建立关系即可完成 A 自律任务
+- 本故事的自动化后端结果不能证明客户端入口可达
+open_questions: []

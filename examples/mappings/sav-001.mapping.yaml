@@ -1,0 +1,23 @@
+schema_version: '0.1'
+story: SAV-001
+story_digest: sha256:972926fc4b65a1136cd0fe40644c8eccf089109576b4de7f510489449bebe7e6
+entries:
+- id: M-SAV-REPLAY
+  covers:
+  - SAV-001.STEP-03
+  - SAV-001.CASE-01
+  level: backend
+  runner: pytest
+  cwd: backend
+  argv:
+  - python
+  - -m
+  - pytest
+  - tests/test_savings_flow.py::test_savings_idempotency_key_deposit_and_yield
+  - -q
+  tests:
+  - nodeid: tests/test_savings_flow.py::test_savings_idempotency_key_deposit_and_yield
+    match: exact
+  env:
+    id: life-piggy-bank-sqlite-isolated
+  timeout_s: 300

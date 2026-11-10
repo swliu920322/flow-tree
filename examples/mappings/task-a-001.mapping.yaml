@@ -1,0 +1,41 @@
+schema_version: '0.1'
+story: TASK-A-001
+story_digest: sha256:f9a31a1a86b64108d0227fb3ce7edcd326f0846a44131723d0f7162fc51a747d
+entries:
+- id: M-A-COMPLETE
+  covers:
+  - TASK-A-001.STEP-02
+  - TASK-A-001.STEP-03
+  level: backend
+  runner: pytest
+  cwd: backend
+  argv:
+  - python
+  - -m
+  - pytest
+  - tests/test_task13_onboarding_and_relationship.py::test_task13_zero_relationship_user_self_task_full_loop
+  - -q
+  tests:
+  - nodeid: tests/test_task13_onboarding_and_relationship.py::test_task13_zero_relationship_user_self_task_full_loop
+    match: exact
+  env:
+    id: life-piggy-bank-sqlite-isolated
+  timeout_s: 300
+- id: M-A-RELATION
+  covers:
+  - TASK-A-001.CASE-01
+  level: backend
+  runner: pytest
+  cwd: backend
+  argv:
+  - python
+  - -m
+  - pytest
+  - tests/test_task13_onboarding_and_relationship.py::test_task13_zero_relationship_user_b_task_rejected
+  - -q
+  tests:
+  - nodeid: tests/test_task13_onboarding_and_relationship.py::test_task13_zero_relationship_user_b_task_rejected
+    match: exact
+  env:
+    id: life-piggy-bank-sqlite-isolated
+  timeout_s: 300

@@ -1,0 +1,25 @@
+schema_version: '0.1'
+story: TASK-B-001
+story_digest: sha256:f93734cb97d781fb1b0de0a0c42fd1c7f305d6abeb0f235ac7188055028964bb
+entries:
+- id: M-B-REVIEW
+  covers:
+  - TASK-B-001.STEP-02
+  - TASK-B-001.STEP-03
+  - TASK-B-001.CASE-01
+  - TASK-B-001.CASE-03
+  level: backend
+  runner: pytest
+  cwd: backend
+  argv:
+  - python
+  - -m
+  - pytest
+  - tests/test_family_tasks_flow.py::test_task_closed_loop_assignment_submission_and_approval
+  - -q
+  tests:
+  - nodeid: tests/test_family_tasks_flow.py::test_task_closed_loop_assignment_submission_and_approval
+    match: exact
+  env:
+    id: life-piggy-bank-sqlite-isolated
+  timeout_s: 300

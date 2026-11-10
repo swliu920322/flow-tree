@@ -1,0 +1,61 @@
+schema_version: '0.1'
+id: SAV-001
+title: 克制记录响应丢失后确认原请求
+actor: 已登录用户
+goal: 在未知写入结果时确认原操作，避免重复记录
+sources:
+- path: USER_STORY_MAP.md
+  anchor: US-38
+- path: docs/STORY_ACCEPTANCE_SPEC.md
+  anchor: 第 4 节 SAV-001 / CASE-02
+preconditions:
+- 隔离用户已有挑战
+- 原操作金额为 50.00，确认前保持原 Key 与原 payload；数值仅为样本夹具
+inputs:
+  amount:
+    type: decimal
+    value: '50.00'
+    max_scale: 2
+clock:
+  now: '2026-01-01T09:00:00'
+  tz: Asia/Kuala_Lumpur
+main_flow:
+- id: STEP-01
+  action: 打开克制记录弹窗
+  expected:
+  - 可填写分类、金额和备注
+- id: STEP-02
+  action: 填写并提交一笔克制记录
+  expected:
+  - 为本次操作保留唯一 Key 和原输入
+- id: STEP-03
+  action: 查看记录结果
+  expected:
+  - 同 Key 重放不重复增加挑战进度或记录
+- id: STEP-04
+  action: 离开页面后重新进入
+  expected:
+  - 进度和记录保持一致
+branches:
+- id: CASE-01
+  at: STEP-02
+  kind: recovery
+  condition: 服务器处理成功但客户端未收到响应
+  expected:
+  - 确认原操作；同 Key 和原 payload 重放后仅保留一次记录
+  continuation:
+    type: rejoin
+    target: STEP-03
+- id: CASE-02
+  at: STEP-02
+  kind: recovery
+  condition: 未知结果期间用户修改分类或金额后再次提交
+  expected:
+  - 客户端先确认原 Key 和原 payload，不能把修改后的输入当成原请求重放
+  continuation:
+    type: rejoin
+    target: STEP-03
+invariants:
+- 挑战记录不改变 A/B 积分
+- 仅能操作自己的挑战
+open_questions: []

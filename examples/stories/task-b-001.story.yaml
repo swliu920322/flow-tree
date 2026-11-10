@@ -1,0 +1,63 @@
+schema_version: '0.1'
+id: TASK-B-001
+title: 家庭 B 任务被驳回后重提
+actor: 关系中的执行人与原发行人
+goal: 保留驳回原因，修改凭证后重提并获得审批
+sources:
+- path: USER_STORY_MAP.md
+  anchor: US-24
+preconditions:
+- 隔离测试中已存在有效的发行人到执行人关系
+- 同周期 B 任务已派发给执行人，目标一次
+inputs: {}
+clock:
+  now: '2026-01-01T09:00:00'
+  tz: Asia/Kuala_Lumpur
+main_flow:
+- id: STEP-01
+  action: 执行人打开待办任务
+  expected:
+  - 显示本人任务和凭证输入入口
+- id: STEP-02
+  action: 执行人提交凭证
+  expected:
+  - 任务进入待审
+- id: STEP-03
+  action: 发行人批准当前待审凭证
+  expected:
+  - 任务审批成功
+- id: STEP-04
+  action: 执行人查看结果和提交历史
+  expected:
+  - 审批后才增加有效进度，B 奖励归属于原发行人
+branches:
+- id: CASE-01
+  at: STEP-02
+  kind: recovery
+  condition: 发行人驳回首次凭证；执行人查看原因、修改凭证并重新提交
+  expected:
+  - 驳回原因可查询
+  - 重提后任务再次进入待审
+  continuation:
+    type: rejoin
+    target: STEP-03
+- id: CASE-02
+  at: STEP-02
+  kind: validation
+  condition: 重提后查询提交版本
+  expected:
+  - 首次凭证保留，重提形成新版本
+  continuation:
+    type: end
+- id: CASE-03
+  at: STEP-03
+  kind: validation
+  condition: 陌生人试图审批或驳回
+  expected:
+  - 拒绝越权操作
+  continuation:
+    type: end
+invariants:
+- 首次提交及驳回不增加积分
+- 审批后的 B 积分不能混入其他发行人的账本
+open_questions: []
