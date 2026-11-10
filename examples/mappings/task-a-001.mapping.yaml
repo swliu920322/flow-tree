@@ -57,3 +57,20 @@ entries:
   env:
     id: life-piggy-bank-sqlite-isolated
   timeout_s: 300
+- id: M-A-CLIENT-CREATE
+  covers:
+  - TASK-A-001.STEP-01
+  level: client
+  runner: flutter
+  cwd: .
+  argv:
+  - flutter
+  - test
+  - test/task13_onboarding_and_relationship_direction_test.dart
+  tests:
+  - nodeid: 'test/task13_onboarding_and_relationship_direction_test.dart::Task 13
+      Flutter: 关系方向与零关系自律任务测试 零关系用户打开 CreateTemplateDialog 默认 A 类并支持成功创建'
+    match: exact
+  env:
+    id: life-piggy-bank-flutter-widget
+  timeout_s: 300

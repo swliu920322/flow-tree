@@ -34,4 +34,12 @@
 
 ## 后端增量接入（2026-11-10）
 
-已补 TASK-A-001.CASE-02 和 TASK-B-001.CASE-02，原项目最小真实执行 2 passed。当前19个单元中已映射11、未映射8；映射数不等于当前有效通过数。见 [增量记录](../docs/BACKEND_MAPPING_INCREMENT_2026-11-10.md)。
+已补 TASK-A-001.CASE-02 和 TASK-B-001.CASE-02，原项目最小真实执行 2 passed。该轮19个单元中已映射11、未映射8；映射数不等于当前有效通过数。见 [增量记录](../docs/BACKEND_MAPPING_INCREMENT_2026-11-10.md)。
+
+## Flutter正式增量（2026-11-10）
+
+接入SAV-001.STEP-02、TASK-A-001.STEP-01、TASK-B-001.STEP-01，三个真实文件40 passed。该轮已映射14/19；另外两个客户端候选待补断言。见[第四批独立报告](../docs/BATCH_04_INDEPENDENT_REVIEW.md)。须使用Flutter固定PATH及HOME声明的pinned工作区，不拼接后端上下文的通过数。
+
+## 请求构造断言补强后（当前）
+
+正式接入新增测试的6个精确名称，补齐SAV-001.STEP-01与CASE-02。同一pinned上下文运行全部9个映射入口：51 passed，16/19单元本次有效，剩余3项离页重进未映射。运行 `run_20261110T121733_36ce89d9`。规则确认、人工验收仍未完成，详见第四批独立报告末节。

@@ -24,3 +24,20 @@ entries:
   env:
     id: life-piggy-bank-sqlite-isolated
   timeout_s: 300
+- id: M-B-CLIENT-SUBMIT
+  covers:
+  - TASK-B-001.STEP-01
+  level: client
+  runner: flutter
+  cwd: .
+  argv:
+  - flutter
+  - test
+  - test/family_tasks_closed_loop_test.dart
+  tests:
+  - nodeid: 'test/family_tasks_closed_loop_test.dart::Task 5: Flutter 在线家庭任务闭环 Widget
+      测试 执行者提交 B 任务输入凭证 -> 状态流转为 submitted'
+    match: exact
+  env:
+    id: life-piggy-bank-flutter-widget
+  timeout_s: 300

@@ -21,3 +21,53 @@ entries:
   env:
     id: life-piggy-bank-sqlite-isolated
   timeout_s: 300
+- id: M-SAV-CLIENT-PENDING
+  covers:
+  - SAV-001.STEP-02
+  level: client
+  runner: flutter
+  cwd: .
+  argv:
+  - flutter
+  - test
+  - test/savings_controller_test.dart
+  tests:
+  - nodeid: 'test/savings_controller_test.dart::Task 19 Phase C: SavingsController
+      单元测试 5. TOCTOU idempotent replay: 网络超时失败后修改输入，必须使用原 Key 与原 payload 重放'
+    match: exact
+  env:
+    id: life-piggy-bank-flutter-widget
+  timeout_s: 300
+- id: M-SAV-CLIENT-WIRE
+  covers:
+  - SAV-001.STEP-01
+  - SAV-001.CASE-02
+  level: client
+  runner: flutter
+  cwd: .
+  argv:
+  - flutter
+  - test
+  - test/savings_submission_wire_test.dart
+  tests:
+  - nodeid: 'test/savings_submission_wire_test.dart::克制记录弹窗: 编辑分类/金额/备注并检查实际提交的请求
+      STEP-01/02 弹窗提供分类、金额、备注三项输入, 编辑后提交的 HTTP 请求逐字段等于所填内容且带非空 Idempotency-Key'
+    match: exact
+  - nodeid: 'test/savings_submission_wire_test.dart::克制记录弹窗: 编辑分类/金额/备注并检查实际提交的请求
+      两次独立提交使用两个不同的 Key, 各自请求体是各自所填内容'
+    match: exact
+  - nodeid: 'test/savings_submission_wire_test.dart::CASE-02 未知结果期间修改输入后再次提交: 重放的必须是原
+      Key 与原完整载荷 改了分类+金额+备注: 第二次实际请求与第一次逐字节相同, 修改后的值从未出现在任何请求里; 随后的新意图才使用新 Key 与新载荷'
+    match: exact
+  - nodeid: 'test/savings_submission_wire_test.dart::CASE-02 未知结果期间修改输入后再次提交: 重放的必须是原
+      Key 与原完整载荷 重放仍然失败: 仍保持原 Key 与原载荷, 反复修改输入再提交也只会重放原请求 (修改值始终不被发送)'
+    match: exact
+  - nodeid: 'test/savings_submission_wire_test.dart::CASE-02 未知结果期间修改输入后再次提交: 重放的必须是原
+      Key 与原完整载荷 只修改金额(分类与备注不变)也必须重放原载荷, 不能把新金额当作原请求'
+    match: exact
+  - nodeid: 'test/savings_submission_wire_test.dart::CASE-02 未知结果期间修改输入后再次提交: 重放的必须是原
+      Key 与原完整载荷 原请求被服务端确定性驳回(4xx)后, 待确认请求被清除, 用户的修改才作为新意图以新 Key 发出'
+    match: exact
+  env:
+    id: life-piggy-bank-flutter-widget
+  timeout_s: 300
