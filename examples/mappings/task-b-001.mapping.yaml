@@ -8,6 +8,7 @@ entries:
   - TASK-B-001.STEP-03
   - TASK-B-001.CASE-01
   - TASK-B-001.CASE-03
+  - TASK-B-001.CASE-02
   level: backend
   runner: pytest
   cwd: backend
