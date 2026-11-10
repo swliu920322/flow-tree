@@ -1,4 +1,5 @@
 """CLI / MCP / Web 共用的领域服务。返回可序列化结构, 退出码语义由调用方按命令职责决定。"""
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -127,30 +128,52 @@ def _spec_files(story_paths, mapping_paths) -> frozenset:
     return frozenset(Path(os.path.realpath(p)) for p in collect_yaml_files(list(story_paths) + list(mapping_paths or [])))
 
 
-def _status_core(stories, mappings, project_root: Path, python: Optional[str], spec_files: frozenset = frozenset()):
-    from .evidence import EvidenceStore
+@dataclass
+class State:
+    """某一时刻、某一执行上下文下的证据与当前基线 (只读收集, 不执行测试, 不写被测项目)。"""
+    evidence: Dict[Any, Any] = field(default_factory=dict)      # (story, entry) -> EntryEvidence
+    current: Dict[Any, Any] = field(default_factory=dict)       # (story, entry) -> 当前 Baseline
+    env_now: Dict[Any, Any] = field(default_factory=dict)       # (story, entry) -> 当前环境变量 HMAC 映射
+    records: Dict[Any, Any] = field(default_factory=dict)       # (story, entry) -> 最新 AttemptRecord (含 manifest)
+    problems: List[str] = field(default_factory=list)
+    checked_at: str = ""
+
+
+def collect_state(stories, mappings, project_root: Path, python: Optional[str], spec_files: frozenset = frozenset(),
+                  extra_env: Optional[Dict[str, str]] = None, readonly: bool = True) -> State:
+    from datetime import datetime, timezone
+    from .evidence import EvidenceStore, latest_record
     from . import baseline as bl
     from .execution import child_env, current_baseline
 
-    store = EvidenceStore(project_root)
-    evidence: Dict[Any, Any] = {}
-    current: Dict[Any, Any] = {}
-    problems: List[str] = []
+    root = Path(project_root).resolve()
+    store = EvidenceStore(root, readonly=readonly)
+    all_records = store.load_attempts()
+    st = State(checked_at=datetime.now(timezone.utc).isoformat())
     runtime_cache: Dict[str, Any] = {}
-    env_now: Dict[Any, Any] = {}
-    salt = bl.env_salt(Path(project_root).resolve())
+    salt = bl.env_salt(root, create=not readonly)
+    env = child_env(extra_env)
     for lm in mappings:
         if lm.mapping is None or lm.mapping.story not in stories.stories:
             continue
         ls = stories.stories[lm.mapping.story]
         for e in lm.mapping.entries:
             key = (lm.mapping.story, e.id)
-            ev, probs = store.latest_evidence(*key)
-            problems.extend(probs)
+            ev, probs = store.latest_evidence(*key, _records=all_records)
+            st.problems.extend(probs)
             if ev is not None:
-                evidence[key] = ev
-            current[key] = current_baseline(ls, lm, e, Path(project_root).resolve(), python, runtime_cache, spec_files)
-            env_now[key] = bl.env_vars_map(child_env(), e.env.ignore, salt)
+                st.evidence[key] = ev
+                st.records[key] = latest_record(all_records[0], *key)
+            st.current[key] = current_baseline(ls, lm, e, root, python, runtime_cache, spec_files, extra_env, readonly)
+            st.env_now[key] = bl.env_vars_map(env, e.env.ignore, salt) if salt is not None else {}
+    st.problems = sorted(set(st.problems))
+    return st
+
+
+def _status_core(stories, mappings, project_root: Path, python: Optional[str], spec_files: frozenset = frozenset(),
+                 extra_env: Optional[Dict[str, str]] = None):
+    state = collect_state(stories, mappings, project_root, python, spec_files, extra_env, readonly=True)
+    evidence, current, env_now, problems = state.evidence, state.current, state.env_now, state.problems
     out, all_views = [], {}
     for sid, ls in stories.stories.items():
         views = compute_units(ls, mappings, evidence, current)
@@ -170,7 +193,7 @@ def _status_core(stories, mappings, project_root: Path, python: Optional[str], s
         for k, ev in sorted(evidence.items())
         if not ev.corrupt and ev.state.value == "completed" and ev.exit_code not in (0, None)
     ]
-    return out, all_views, sorted(set(problems)), command_failures
+    return out, all_views, problems, command_failures
 
 
 def status(story_paths: List[Path], mapping_paths: Optional[List[Path]], project_root: Path,

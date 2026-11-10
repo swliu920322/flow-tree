@@ -1,0 +1,19 @@
+# FlowTree 工作区配置示例。本机真实配置放在 .flowtree/workspaces.yaml (已被 gitignore), 或用环境变量
+# FLOWTREE_WORKSPACES 指向其他路径。相对路径 (stories/mappings) 以 FlowTree 仓库根目录为基准。
+#
+# 页面只读: 打开/刷新/展开不会启动测试, 也不会修改被测项目; 它只读取证据, 并在 execution_context
+# 描述的上下文里重新计算"证据是否仍适用"。execution_context 必须与当初执行时一致, 否则有效性会显示
+# 待更新/未知 —— 这是预期行为, 不是缺陷。API 只暴露环境变量的名称, 不暴露值。
+workspaces:
+  - id: life-piggy-bank
+    name: Life-Piggy-Bank
+    project_root: /absolute/path/to/Life-Piggy-Bank
+    python: /absolute/path/to/Life-Piggy-Bank/backend/venv/bin/python   # 被测项目自己的解释器
+    stories: [examples/stories]
+    mappings: [examples/mappings]
+    execution_context:
+      env:                                  # 执行 verify 时额外设置/覆盖的环境变量
+        ENVIRONMENT: test
+        DATABASE_URL: "sqlite+aiosqlite:///:memory:"
+        PYTHONDONTWRITEBYTECODE: "1"
+      git_excludes_file: /absolute/path/to/git-excludes   # 可选: 仅对 FlowTree 的 git 调用生效的 core.excludesFile

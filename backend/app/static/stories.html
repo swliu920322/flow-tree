@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FlowTree 故事验收</title>
+<link rel="stylesheet" href="/static/stories.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><strong>FlowTree</strong><span>故事验收 · 只读</span></div>
+  <label class="field">工作区 <select id="ws"></select></label>
+  <nav id="storyTabs" class="tabs" aria-label="故事"></nav>
+  <div class="tools">
+    <label class="chk"><input type="checkbox" id="optIds"> 显示稳定 ID</label>
+    <label class="chk"><input type="checkbox" id="optAll"> 展开全部分支</label>
+    <label class="chk"><input type="checkbox" id="optRisk"> 仅看未通过/未覆盖</label>
+    <button id="btnRefresh" type="button" title="重新读取证据并重新比较基线 (只读, 不会执行测试)">重新读取</button>
+    <a class="legacy" href="/">旧电路视图</a>
+  </div>
+</header>
+<main>
+  <div id="notice" role="status"></div>
+  <section id="storyHead"></section>
+  <section id="ctx"></section>
+  <section id="flow" aria-label="用户主流程"></section>
+</main>
+<aside id="drawer" class="drawer" hidden aria-label="详情">
+  <button id="drawerClose" type="button" class="close" aria-label="关闭">×</button>
+  <div id="drawerBody"></div>
+</aside>
+<script src="/static/stories.js"></script>
+</body>
+</html>

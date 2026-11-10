@@ -80,20 +80,33 @@ def _ts_from_run_id(run_id: str) -> Optional[str]:
     return f"{d[:4]}-{d[4:6]}-{d[6:]}T{t[:2]}:{t[2:4]}:{t[4:]}+00:00"
 
 
+def latest_record(records: List["AttemptRecord"], story_id: str, entry_id: str) -> Optional["AttemptRecord"]:
+    mine = [r for r in records if r.story_id == story_id and r.entry_id == entry_id]
+    return max(mine, key=lambda x: (x.started_at is None, x.started_at or "")) if mine else None
+
+
 class EvidenceStore:
-    def __init__(self, project_root: Path):
+    """readonly=True: 不创建目录/数据库/表, SQLite 以只读方式打开; 证据不存在就是"没有证据"。
+    只读界面和 `story status` 类读取必须使用它, 浏览不得修改被测项目。"""
+
+    def __init__(self, project_root: Path, readonly: bool = False):
         self.root = Path(project_root).resolve()
+        self.readonly = readonly
         self.base = self.root / ".flowtree"
         self.runs_dir = self.base / "runs"
-        self.runs_dir.mkdir(parents=True, exist_ok=True)
         self.db_path = self.base / "data.db"
-        with self._conn() as c:
-            c.execute("""CREATE TABLE IF NOT EXISTS flowtree_attempts (
-                attempt_id TEXT PRIMARY KEY, run_id TEXT NOT NULL, story_id TEXT NOT NULL, entry_id TEXT NOT NULL,
-                state TEXT NOT NULL, started_at TEXT NOT NULL, finished_at TEXT, manifest_sha256 TEXT NOT NULL)""")
+        if not readonly:
+            self.runs_dir.mkdir(parents=True, exist_ok=True)
+            with self._conn() as c:
+                c.execute("""CREATE TABLE IF NOT EXISTS flowtree_attempts (
+                    attempt_id TEXT PRIMARY KEY, run_id TEXT NOT NULL, story_id TEXT NOT NULL, entry_id TEXT NOT NULL,
+                    state TEXT NOT NULL, started_at TEXT NOT NULL, finished_at TEXT, manifest_sha256 TEXT NOT NULL)""")
 
     def _conn(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(str(self.db_path))
+        if self.readonly:
+            conn = sqlite3.connect(f"file:{self.db_path}?mode=ro", uri=True)
+        else:
+            conn = sqlite3.connect(str(self.db_path))
         conn.row_factory = sqlite3.Row
         return conn
 
@@ -161,8 +174,13 @@ class EvidenceStore:
 
     def load_attempts(self) -> Tuple[List[AttemptRecord], List[str]]:
         """所有尝试 (目录与索引的并集) 及无法归属到任何 (故事, 条目) 的全局问题。"""
-        with self._conn() as c:
-            rows = {r["attempt_id"]: r for r in c.execute("SELECT * FROM flowtree_attempts")}
+        try:
+            with self._conn() as c:
+                rows = {r["attempt_id"]: r for r in c.execute("SELECT * FROM flowtree_attempts")}
+        except sqlite3.OperationalError:
+            if not self.readonly:
+                raise
+            rows = {}  # 只读且库/表不存在: 没有任何已索引的尝试
         records: List[AttemptRecord] = []
         global_problems: List[str] = []
         seen_ids = set()
@@ -181,7 +199,8 @@ class EvidenceStore:
             seen_ids.add(attempt_id)
             records.append(AttemptRecord(d, m, problems, story, entry, attempt_id, started))
 
-        for run in sorted(x for x in self.runs_dir.iterdir() if x.is_dir()):
+        run_dirs = sorted(x for x in self.runs_dir.iterdir() if x.is_dir()) if self.runs_dir.exists() else []
+        for run in run_dirs:
             for child in sorted(x for x in run.iterdir() if x.is_dir()):
                 subdirs = [x for x in child.iterdir() if x.is_dir()]
                 files = [x for x in child.iterdir() if x.is_file()]
@@ -199,8 +218,8 @@ class EvidenceStore:
                 global_problems.append(f"{r.attempt_id}: attempt cannot be attributed to a story ({'; '.join(r.problems)})")
         return records, global_problems
 
-    def latest_evidence(self, story_id: str, entry_id: str) -> Tuple[Optional[EntryEvidence], List[str]]:
-        records, global_problems = self.load_attempts()
+    def latest_evidence(self, story_id: str, entry_id: str, _records=None) -> Tuple[Optional[EntryEvidence], List[str]]:
+        records, global_problems = _records if _records is not None else self.load_attempts()
         mine = [r for r in records if r.story_id == story_id and r.entry_id == entry_id]
         if not mine:
             return None, global_problems

@@ -29,8 +29,10 @@ TERM_GRACE_S = 5
 KILL_WAIT_S = 5
 
 
-def child_env() -> Dict[str, str]:
+def child_env(extra: Optional[Dict[str, str]] = None) -> Dict[str, str]:
+    """extra: 工作区声明的执行上下文覆盖项 (与执行时一致才能重检)。"""
     env = dict(os.environ)
+    env.update(extra or {})
     env.pop("PYTEST_ADDOPTS", None)
     env["PYTHONPATH"] = os.pathsep.join(filter(None, [str(bl.PLUGIN_DIR), env.get("PYTHONPATH")]))
     return env
@@ -67,10 +69,11 @@ def build_command(entry: Entry, exe: str, junit_path: Path) -> List[str]:
 def current_baseline(
     story: LoadedStory, mapping: LoadedMapping, entry: Entry, project_root: Path,
     python: Optional[str], runtime_cache: Optional[Dict[str, Optional[str]]] = None,
-    spec_files: frozenset = frozenset(),
+    spec_files: frozenset = frozenset(), extra_env: Optional[Dict[str, str]] = None, readonly: bool = False,
 ) -> Baseline:
-    """现在的基线 (用于 verify 前后比较, 以及 status 判断历史证据是否仍适用)。"""
-    env = child_env()
+    """现在的基线 (用于 verify 前后比较, 以及 status 判断历史证据是否仍适用)。
+    readonly=True: 不在被测项目里创建任何文件 (环境盐缺失 → env_digest 为 None → 有效性 unknown)。"""
+    env = child_env(extra_env)
     cwd = (project_root / entry.cwd).resolve() if not os.path.isabs(entry.cwd) else Path(entry.cwd)
     exe = resolve_interpreter(entry, cwd, python, env)
     py = probe_python(entry, exe, python)
@@ -81,11 +84,12 @@ def current_baseline(
             info, _ = bl.probe_runtime(py, env)
             cache[py] = info["digest"] if info else None
         runtime = cache[py]
-    fp = bl.worktree_fingerprint(cwd, spec_files) if cwd.exists() else None
-    env_d = bl.env_digest(bl.env_vars_map(env, entry.env.ignore, bl.env_salt(project_root)))
+    fp = bl.worktree_fingerprint(cwd, spec_files, env) if cwd.exists() else None
+    salt = bl.env_salt(project_root, create=not readonly)
+    env_d = bl.env_digest(bl.env_vars_map(env, entry.env.ignore, salt)) if salt is not None else None
     return Baseline(
         story_digest=story.digest, entry_digest=mapping.entry_digests[entry.id], env_id=entry.env.id,
-        worktree_fingerprint=fp, git_sha=bl.git_head(cwd) if cwd.exists() else None,
+        worktree_fingerprint=fp, git_sha=bl.git_head(cwd, env) if cwd.exists() else None,
         mapping_digest=mapping.digest, runtime_digest=runtime, verifier=VERIFIER, env_digest=env_d,
     )
 

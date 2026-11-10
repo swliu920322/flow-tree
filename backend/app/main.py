@@ -15,8 +15,10 @@ from app.core.schema import (
 )
 from app.core.lens import PerspectiveLens
 from app.core.circuit import CircuitEngine
+from app.stories_api import router as stories_router
 
 app = FastAPI(title="FlowTree State Circuit Engine", version="1.0.0")
+app.include_router(stories_router)  # 故事验收只读接口 (GET only)
 
 app.add_middleware(
     CORSMiddleware,
@@ -298,6 +300,11 @@ async def websocket_circuit(websocket: WebSocket):
 STATIC_DIR = Path(__file__).parent / "static"
 if STATIC_DIR.exists():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+@app.get("/stories")
+def serve_stories_page():
+    """故事验收只读页面 (原生 JS, 无 CDN、无构建步骤)。旧电路视图仍在 `/`。"""
+    return FileResponse(STATIC_DIR / "stories.html", headers={"Cache-Control": "no-store"})
 
 @app.get("/")
 def serve_index():

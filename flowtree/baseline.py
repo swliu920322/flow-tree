@@ -21,25 +21,26 @@ PLUGIN_DIR = Path(__file__).resolve().parent / "plugin"
 PLUGIN_FILE = PLUGIN_DIR / "flowtree_pytest_plugin.py"
 
 
-def _git(args, cwd) -> Optional[bytes]:
+def _git(args, cwd, env: Optional[dict] = None) -> Optional[bytes]:
     try:
-        r = subprocess.run(["git", *args], cwd=str(cwd), capture_output=True, timeout=60)
+        r = subprocess.run(["git", *args], cwd=str(cwd), capture_output=True, timeout=60, env=env)
     except (OSError, subprocess.SubprocessError):
         return None
     return r.stdout if r.returncode == 0 else None
 
 
-def git_head(cwd: Path) -> Optional[str]:
-    out = _git(["rev-parse", "HEAD"], cwd)
+def git_head(cwd: Path, env: Optional[dict] = None) -> Optional[str]:
+    out = _git(["rev-parse", "HEAD"], cwd, env)
     return out.decode().strip() if out else None
 
 
-def worktree_fingerprint(cwd: Path, exclude: frozenset = frozenset()) -> Optional[str]:
-    top = _git(["rev-parse", "--show-toplevel"], cwd)
+def worktree_fingerprint(cwd: Path, exclude: frozenset = frozenset(), env: Optional[dict] = None) -> Optional[str]:
+    """env: 传给 git 的环境。执行时用过的 git 配置 (例如只对本次命令生效的 core.excludesFile) 必须在重检时保持一致。"""
+    top = _git(["rev-parse", "--show-toplevel"], cwd, env)
     if not top:
         return None
     root = Path(top.decode().strip())
-    listing = _git(["ls-files", "-z", "--cached", "--others", "--exclude-standard"], root)
+    listing = _git(["ls-files", "-z", "--cached", "--others", "--exclude-standard"], root, env)
     if listing is None:
         return None
     h = hashlib.sha256()
@@ -102,15 +103,19 @@ VOLATILE_ENV = frozenset({
     "LINES", "COLUMNS", "XPC_FLAGS", "XPC_SERVICE_NAME", "LaunchInstanceID", "__CF_USER_TEXT_ENCODING",
     "Apple_PubSub_Socket_Render", "SSH_AUTH_SOCK", "SSH_AGENT_PID", "DISPLAY", "PYTEST_CURRENT_TEST",
     "FLOWTREE_REPORT", "FLOWTREE_RUN_ID", "FLOWTREE_ATTEMPT_ID",
+    "FLOWTREE_WORKSPACES",  # Web 服务自己的配置指针, 不属于被测环境。不能按 FLOWTREE_ 前缀排除: 被测代码可能读取同前缀变量
 })
 
 
-def env_salt(project_root: Path) -> bytes:
+def env_salt(project_root: Path, create: bool = True) -> Optional[bytes]:
+    """create=False (只读场景): 盐不存在就返回 None —— 不在被测项目里创建任何文件, 环境摘要因此无法计算 (unknown)。"""
     path = Path(project_root) / ".flowtree" / "env.salt"
     try:
         return bytes.fromhex(path.read_text().strip())
     except (OSError, ValueError):
         pass
+    if not create:
+        return None
     path.parent.mkdir(parents=True, exist_ok=True)
     salt = os.urandom(32)
     fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)

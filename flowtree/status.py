@@ -136,6 +136,22 @@ def evaluate_validity(evidence: Baseline, current: Baseline) -> Tuple[Validity, 
     return Validity.CURRENT, []
 
 
+def compare_aspects(evidence: Baseline, current: Baseline) -> Dict[str, str]:
+    """逐维度比较 (same / changed / unknown), 供界面分别说明哪一方面不一致。与 evaluate_validity 使用同一组字段。"""
+    out: Dict[str, str] = {}
+    for label, a, b in (
+        ("story", evidence.story_digest, current.story_digest),
+        ("mapping_entry", evidence.entry_digest, current.entry_digest),
+        ("env_id", evidence.env_id, current.env_id),
+        ("worktree", evidence.worktree_fingerprint, current.worktree_fingerprint),
+        ("runtime", evidence.runtime_digest, current.runtime_digest),
+        ("verifier", evidence.verifier, current.verifier),
+        ("environment", evidence.env_digest, current.env_digest),
+    ):
+        out[label] = "unknown" if a is None or b is None else ("same" if a == b else "changed")
+    return out
+
+
 @dataclass
 class EntryEvidence:
     entry_id: str
