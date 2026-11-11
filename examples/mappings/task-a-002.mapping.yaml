@@ -1,0 +1,28 @@
+# US-23 正式映射：单个联调用例覆盖五个单元，结果粒度为整个用例。
+schema_version: '0.1'
+story: TASK-A-002
+story_digest: sha256:7b6530b12be81ce03eb33d718f1a25a925d699d7ff5880e2613f4f3cea6c97cc
+entries:
+- id: M-A2-REAL-INTEGRATION
+  covers:
+  - TASK-A-002.STEP-01
+  - TASK-A-002.STEP-02
+  - TASK-A-002.STEP-03
+  - TASK-A-002.CASE-01
+  - TASK-A-002.CASE-02
+  level: e2e
+  runner: flutter
+  cwd: .
+  argv:
+  - flutter
+  - test
+  - test_integration/real_backend_two_checkins_test.dart
+  tests:
+  - nodeid: 'test_integration/real_backend_two_checkins_test.dart::US-23 目标两次: 第1次进度1/2且不发奖 → 重进仍1/2 →
+      第2次完成且只发一次 15 → 再提交被拒(409)且账本不变'
+    match: exact
+  env:
+    id: life-piggy-bank-flutter-integration-sqlite
+  timeout_s: 300
+  companions:
+  - backend-python

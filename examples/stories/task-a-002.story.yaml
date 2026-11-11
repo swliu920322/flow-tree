@@ -1,0 +1,59 @@
+schema_version: '0.1'
+id: TASK-A-002
+title: 个人 A 任务打卡两次后仅领取一次奖励
+actor: 已登录的任务执行人
+goal: 达到两次目标后完成任务并获得一次 A 奖励
+sources:
+- path: USER_STORY_MAP.md
+  anchor: US-23
+preconditions:
+- 已存在目标为两次、指派给本人的 A 任务，当前进度为零
+- 测试夹具选用零关系用户、每日任务、奖励 15.00、初始 A 积分为 0.00 且无 A 流水；不是所有任务的默认规则
+- 本例两次打卡发生在同一任务周期内
+inputs:
+  target_count:
+    type: integer
+    value: 2
+  reward:
+    type: decimal
+    value: '15.00'
+    max_scale: 2
+main_flow:
+- id: STEP-01
+  action: 登录并打开任务页面
+  expected:
+  - 显示该任务，目标为两次，当前进度为零，可进行打卡
+- id: STEP-02
+  action: 第一次打卡并查看结果
+  expected:
+  - 进度为一次，任务未完成，仍可继续打卡
+  - A 积分仍为 0.00，没有新增 A 奖励流水
+- id: STEP-03
+  action: 第二次打卡并查看完成结果
+  expected:
+  - 进度为两次，任务已完成，不再提供打卡入口
+  - A 积分为 15.00，仅新增一条奖励 15.00 的 A 流水，余额与账本一致
+branches:
+- id: CASE-01
+  at: STEP-02
+  kind: recovery
+  condition: 第一次打卡结果已知成功后，重新加载一个任务页面
+  expected:
+  - 重新读取的进度仍为一次，任务未完成，A 积分仍为 0.00
+  - 页面加载不产生额外打卡提交
+  continuation:
+    type: rejoin
+    target: STEP-03
+- id: CASE-02
+  at: STEP-03
+  kind: validation
+  condition: 已完成后再次请求提交
+  expected:
+  - 拒绝重复完成，不新增奖励流水，A 积分仍为 15.00
+  continuation:
+    type: end
+invariants:
+- 达到两次目标之前不发放完成奖励，达到目标后仅发一次
+- 账号与任务允许由测试经真实后端 API 准备；此故事不证明任务创建界面
+- 页面重新加载不等于原页面销毁重建或应用冷启动恢复
+open_questions: []
