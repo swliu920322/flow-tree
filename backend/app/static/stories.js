@@ -51,6 +51,10 @@
   const RESULT = { passed: "通过", failed: "失败", error: "执行错误", blocked: "环境阻塞", not_run: "未执行",
                    running: "运行中", unmapped: "未映射", skipped: "跳过", xfailed: "已知缺陷(xfail)",
                    xpassed: "意外通过(xpass)", missing: "缺失" };
+  // 映射声明的验证层级: 只说明这条证据"在哪一层、用什么运行器"验证, 不代表所有角色界面、真机或生产环境已验收
+  const LEVEL = { code_review: "代码审查", backend: "后端验证", client: "客户端验证", e2e: "联调" };
+  const LEVEL_NOTE = "验证层级由映射声明，只说明这条证据所在的层和运行器；仅凭客户端或联调条目，不能说明所有角色界面、真机或生产环境已验收。";
+  const levelText = (e) => (e.level ? (LEVEL[e.level] || e.level) : "未声明");
   const VALIDITY = { current: "有效", stale: "待更新", unknown: "无法确认" };
   const ASPECT = { story: "故事内容", mapping_entry: "映射条目", env_id: "环境标识", worktree: "工作区代码",
                    runtime: "运行时与依赖", verifier: "验证器版本", environment: "环境变量配置", context: "执行上下文策略" };
@@ -99,7 +103,7 @@
     return h("div", { class: "exp" }, evs.map((e) => {
       const v = e.corrupt ? "证据记录损坏" : (VALIDITY[e.validity] || "—");
       const diff = e.aspects ? Object.entries(e.aspects).filter(([, x]) => x !== "same").map(([k, x]) => `${ASPECT[k] || k}${ASPECT_STATE[x]}`) : [];
-      return h("div", {}, `最近执行 ${fmtTime(e.started_at)} · 结果 ${RESULT[e.last_result] || "—"} · 证据${v}${diff.length ? "（" + diff.join("、") + "）" : ""}`,
+      return h("div", {}, h("span", { class: "chip", title: LEVEL_NOTE, text: levelText(e) }), ` 最近执行 ${fmtTime(e.started_at)} · 结果 ${RESULT[e.last_result] || "—"} · 证据${v}${diff.length ? "（" + diff.join("、") + "）" : ""}`,
         h("span", { class: "sid", text: ` ${e.entry} ${short(e.run_id, 24)}` }));
     }));
   }
@@ -231,6 +235,7 @@
     box.append(
       h("div", {}, h("strong", { text: `映射条目 ${e.entry}` }), h("span", { class: "sid", text: ` ${e.entry}` })),
       h("dl", { class: "kv" },
+        h("dt", { text: "验证层级" }), h("dd", { title: LEVEL_NOTE, text: `${levelText(e)}（映射声明）· runner：${e.runner || "—"}` }),
         h("dt", { text: "最近结果" }), h("dd", { text: e.has_evidence ? (RESULT[e.last_result] || "—") : "从未执行" }),
         h("dt", { text: "对当前上下文" }), h("dd", { text: v }),
         e.state ? [h("dt", { text: "尝试状态" }), h("dd", { text: `${e.state}${e.reason ? "：" + e.reason : ""}` })] : null,
@@ -244,6 +249,7 @@
     if (e.changed_env_count) {
       box.append(h("div", { class: "exp", text: `不同的环境变量（共 ${e.changed_env_count} 个，仅名称）：${e.changed_env_names.join(", ")}${e.changed_env_count > e.changed_env_names.length ? " …" : ""}` }));
     }
+    box.append(h("div", { class: "exp", text: LEVEL_NOTE }));
     if (e.tests) {
       box.append(h("ul", { class: "tests" }, e.tests.map((t) => h("li", {},
         h("span", { class: "chip " + (t.outcome === "passed" ? "ok" : t.outcome === "failed" ? "bad" : ""), text: RESULT[t.outcome] || t.outcome || "—" }),

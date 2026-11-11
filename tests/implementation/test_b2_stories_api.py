@@ -457,3 +457,50 @@ def test_cache_still_serves_same_config_within_ttl_and_refresh_bypasses_it(real,
     c.get("/api/workspaces/ws1/stories/SAV-001?refresh=true")
     assert len(calls) == 2                                  # 显式刷新仍可用
     assert len(view._cache) == 1                            # 同一 id 的旧配置结果被淘汰, 不无限增长
+
+
+# ---------------------------------------------------------------- 验证层级 (映射声明的 level / runner)
+
+def _entries(detail):
+    out = {}
+    for st in detail["flow"]:
+        for u in [st["unit"]] + [b["unit"] for b in st["branches"]]:
+            for e in u["entries"]:
+                out[e["entry"]] = e
+    return out
+
+
+def test_entries_expose_declared_level_and_runner(real):
+    c, p, _ = real
+    es = _entries(c.get("/api/workspaces/ws1/stories/SAV-001").json())
+    assert set(es) == {"M-01", "M-02"}
+    for e in es.values():
+        assert (e["level"], e["runner"]) == ("backend", "pytest")
+    assert es["M-01"]["tests"][0]["nodeid"].endswith("test_zero_amount_rejected")      # 完整测试名与运行入口仍在
+    assert es["M-01"]["ref"]["entry"] == "M-01"
+
+
+def test_level_is_the_mapping_declaration_and_does_not_change_the_recorded_result(real):
+    c, p, _ = real
+    from flowtree import view
+    before = _entries(c.get("/api/workspaces/ws1/stories/SAV-001").json())
+    text = p.map_file.read_text()
+    assert text.count("level: backend") == 2
+    p.map_file.write_text(text.replace("level: backend", "level: e2e", 1))              # 只改 M-01 的声明
+    view._cache.clear()
+    after = _entries(c.get("/api/workspaces/ws1/stories/SAV-001").json())
+    assert (after["M-01"]["level"], after["M-02"]["level"]) == ("e2e", "backend")
+    assert after["M-01"]["last_result"] == before["M-01"]["last_result"] == "passed"    # 已记录的结果不因层级字段而被改写
+    assert after["M-02"]["validity"] == before["M-02"]["validity"] == "current"         # 未改动的条目判定不变
+
+
+def test_entry_removed_from_mapping_no_longer_appears_with_a_declaration(real):
+    c, p, _ = real
+    from flowtree import view
+    text = p.map_file.read_text()
+    head, _, rest = text.partition("  - id: M-02")
+    p.map_file.write_text(head)                                                         # 删掉 M-02 条目
+    view._cache.clear()
+    es = _entries(c.get("/api/workspaces/ws1/stories/SAV-001").json())
+    assert es["M-01"]["level"] == "backend"
+    assert "M-02" not in es      # 映射里已没有的条目不会作为条目出现, 因此不会带出过期的声明

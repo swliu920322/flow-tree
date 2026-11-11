@@ -104,3 +104,26 @@ def test_risk_filter_hides_fully_passing_steps_only(server):
     assert "金额为 0" not in t and "服务端处理成功" not in t     # 两个分支本次都已通过 → 不列出
     assert "用户查看提交结果" not in t                          # 本次通过且无分支 → 隐藏
     assert "用户打开克制记录弹窗" in t and "用户离开页面后重新进入" in t   # 未映射的步骤是未覆盖项, 保留
+
+
+def test_drawer_shows_declared_level_labels_without_claiming_wider_acceptance(server):
+    url, p = server
+    t = text_of(dom(f"{url}/stories?open=CASE-01#/ws1/SAV-001"))
+    assert "验证层级 后端验证（映射声明）· runner：pytest" in t
+    assert "不能说明所有角色界面、真机或生产环境已验收" in t
+    assert "tests/test_savings.py::test_zero_amount_rejected" in t       # 完整测试名仍在
+    assert "对当前上下文 有效" in t and "最近结果 通过" in t              # 最近结果与证据有效性仍独立显示
+    assert "人工" in t and "规则" in t                                    # 规则/人工维度仍在
+    assert "null" not in t and "[object" not in t and "undefined" not in t
+
+
+def test_drawer_labels_client_and_e2e_levels_from_the_mapping_declaration(server):
+    url, p = server
+    text = p.map_file.read_text()
+    p.map_file.write_text(text.replace("level: backend", "level: client", 1).replace("level: backend", "level: e2e", 1))
+    from flowtree import view
+    view._cache.clear()
+    t1 = text_of(dom(f"{url}/stories?open=CASE-01#/ws1/SAV-001"))
+    assert "验证层级 客户端验证（映射声明）· runner：pytest" in t1
+    t2 = text_of(dom(f"{url}/stories?open=CASE-02#/ws1/SAV-001"))
+    assert "验证层级 联调（映射声明）· runner：pytest" in t2

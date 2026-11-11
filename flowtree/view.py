@@ -85,8 +85,12 @@ def _entry_out(sid: str, ev_view, state, entries_by_id) -> Dict[str, Any]:
         aspects = compare_aspects(ev.baseline, state.current[key])
         if aspects["environment"] == "changed":
             names = _changed_env_names(ev, state.env_now.get(key, {}))
+    declared = entries_by_id.get(ev_view.entry_id)
     out: Dict[str, Any] = {
         "entry": ev_view.entry_id,
+        # 映射声明的验证层级与 runner (只是声明, 不是对角色界面/真机/生产环境验收范围的断言); 映射里已没有该条目时为 None
+        "level": declared.level if declared else None,
+        "runner": declared.runner if declared else None,
         "has_evidence": ev is not None,
         "run_id": ev_view.run_id,
         "validity": ev_view.validity.value if ev_view.validity else None,
