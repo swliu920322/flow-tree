@@ -19,6 +19,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from . import baseline as bl
 from .evidence import EvidenceStore, baseline_to_dict, now_iso, sha256_file
+from .companions import cache_key as companion_cache_key, combine as companion_combine, probe_companions, runtime_with_companions
 from .context import ContextSpec, resolve as resolve_context
 from .mapping import Entry, LoadedMapping
 from .runners import get_runner
@@ -48,11 +49,15 @@ def current_baseline(
     runner = get_runner(entry.runner)
     exe = runner.resolve_executable(entry, cwd, python, env)
     runtime = None
+    specs = ctx.companions if ctx is not None else {}
     key = runner.runtime_cache_key(entry, exe, python, cwd)
     if key is not None:   # 只读探测; 失败 (前置缺失) → 摘要 None → 有效性 unknown
+        ck = companion_cache_key(entry, specs, env)
+        if ck is not None:   # 伴随项配置与实际绑定值参与缓存键: 不同伴随项/解释器不共用旧结果
+            key = (key, ck)
         cache = runtime_cache if runtime_cache is not None else {}
         if key not in cache:
-            cache[key] = runner.runtime(entry, exe, python, env, cwd, project_root).digest
+            cache[key] = runtime_with_companions(runner, entry, exe, python, env, cwd, project_root, specs).digest
         runtime = cache[key]
     fp = bl.worktree_fingerprint(cwd, spec_files, genv) if cwd.exists() else None
     salt = bl.env_salt(project_root, create=not readonly)
@@ -132,6 +137,7 @@ def run_attempt(
     env = dict(rc.env)
     env_base = dict(env)  # 不含本次尝试专属的 FLOWTREE_* 注入
     cwd = (project_root / entry.cwd).resolve() if not os.path.isabs(entry.cwd) else Path(entry.cwd)
+    specs = ctx.companions if ctx is not None else {}
     runtime_cache: Dict[str, Optional[str]] = {}
     before = current_baseline(story, mapping, entry, project_root, python, runtime_cache, spec_files, ctx)
     runner = get_runner(entry.runner)
@@ -177,7 +183,7 @@ def run_attempt(
             return finish(AttemptState.ERROR, f"cwd {cwd} is outside project root {project_root}")
         if exe is None:
             return finish(AttemptState.BLOCKED, f"executable for {entry.argv[0]!r} not found (pass --python for the project's Python environment, or use an absolute path / the pinned PATH)")
-        probe = runner.runtime(entry, exe, python, env, cwd, project_root)
+        probe = runtime_with_companions(runner, entry, exe, python, env, cwd, project_root, specs)
         if probe.error:   # 已知环境前置缺失 (解释器无 pytest、SDK 未初始化、依赖缓存缺失等): 阻塞, 不引导/联网
             return finish(AttemptState.BLOCKED, probe.error)
 
@@ -217,13 +223,22 @@ def run_attempt(
 
         # 实际运行时与执行前探测、与执行后基线是否一致
         actual_runtime = out.actual_runtime_digest
+        if entry.companions and out.runtime_applicable:
+            # 伴随项: 执行后全新探测 (不复用执行前摘要), 与 runner 报告的实际运行时组合; 任何问题 → 无法确认 → 判定运行时变化
+            items, infos, probs = probe_companions(entry, env, specs)
+            actual_runtime = None if (probs or actual_runtime is None) else companion_combine(actual_runtime, items)
+            rt = dict(m.get("runtime") or {})
+            rt["companions"] = infos
+            m["runtime"] = rt
+            if probs:
+                m["companion_problems"] = probs
         fresh = reload() if reload else None
         changed = []
         if fresh is None:
             changed.append("story/mapping unreadable after run")
             after = before
         else:
-            after = current_baseline(*fresh, project_root, python, runtime_cache, spec_files, ctx)
+            after = current_baseline(*fresh, project_root, python, {}, spec_files, ctx)   # 新缓存: 执行后重新探测, 不复用执行前摘要
         m["baseline_after"] = baseline_to_dict(after)
         if before.worktree_fingerprint != after.worktree_fingerprint or after.worktree_fingerprint is None:
             changed.append("worktree")

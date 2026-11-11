@@ -48,6 +48,8 @@ class Entry(_Strict):
     tests: List[TestRef] = Field(min_length=1)
     env: EnvRef
     timeout_s: int = Field(default=600, ge=1, le=3600)
+    # 伴随运行时名称 (配置在工作区, 见 flowtree.companions); 空 = 与旧映射逐字节一致
+    companions: List[str] = Field(default_factory=list)
 
 
 class Mapping(_Strict):
@@ -77,6 +79,13 @@ def _check_entry(entry: Entry, where: str, issues: List[Issue]) -> None:
     for name in entry.env.ignore:
         if not re.match(r"^[A-Za-z_][A-Za-z0-9_]*$", name):
             issues.append(Issue(ERROR, "mapping.env_ignore", where, f"env.ignore name {name!r} is not a valid variable name"))
+    seen_c = set()
+    for name in entry.companions:
+        if not re.match(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$", name):
+            issues.append(Issue(ERROR, "mapping.companion_name", where, f"companions name {name!r} is invalid (names only; machine paths belong in the workspace configuration)"))
+        if name in seen_c:
+            issues.append(Issue(ERROR, "mapping.companion_duplicate", where, f"companion {name!r} listed twice"))
+        seen_c.add(name)
     if Path(entry.cwd).is_absolute():
         issues.append(Issue(WARNING, "mapping.cwd_absolute", where, "absolute cwd is not portable across machines"))
 
@@ -142,7 +151,10 @@ def load_mapping_file(path: Path, stories: StorySet) -> LoadedMapping:
                 issues.append(Issue(ERROR, "mapping.covers_cross_story", where, f"covers {c!r} is outside mapping story {m.story!r}; cross-story coverage is not supported in B1a, use a separate mapping file"))
             elif loaded_story and loaded_story.story and unit not in unit_ids:
                 issues.append(Issue(ERROR, "mapping.dangling_ref", where, f"covers {c!r}: story has no step/branch {unit!r}"))
-        entry_digests[e.id] = content_digest({"story": m.story, "entry": e.model_dump(mode="json")})
+        dumped = e.model_dump(mode="json")
+        if not dumped.get("companions"):
+            dumped.pop("companions", None)   # 未声明伴随项: 条目摘要与引入该字段之前逐字节相同, 旧证据不受影响
+        entry_digests[e.id] = content_digest({"story": m.story, "entry": dumped})
     return LoadedMapping(path, m, digest, entry_digests, issues)
 
 

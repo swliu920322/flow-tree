@@ -79,7 +79,7 @@ _PROBE = (
 def probe_runtime(python_exe: str, env: dict) -> Tuple[Optional[dict], Optional[str]]:
     """用与执行相同的解释器探测运行时。返回 (info, error)。缺 pytest 等视为环境前置缺失。"""
     try:
-        r = subprocess.run([python_exe, "-I", "-c", _PROBE, str(PLUGIN_FILE)],
+        r = subprocess.run([python_exe, "-I", "-B", "-c", _PROBE, str(PLUGIN_FILE)],
                            capture_output=True, text=True, timeout=60, env=env)
     except FileNotFoundError:
         return None, f"interpreter not found: {python_exe}"

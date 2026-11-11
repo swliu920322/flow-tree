@@ -35,3 +35,24 @@ workspaces:
       env_from_host: [HOME]
       env: {PYTHONDONTWRITEBYTECODE: "1"}
       git_excludes_file: /absolute/path/to/git-excludes
+
+  # 伴随运行时 (companion): 被测行为依赖、但不在 runner 自己探测范围内的解释器/依赖 (例如 Flutter 联调测试启动的后端 Python)。
+  # 映射 entry 写 `companions: [backend-python]`; 机器路径只写在这里。bind_env 是测试实际接收解释器路径的环境变量名,
+  # 声明的解释器必须与它在子进程环境里的值一致, 否则执行 blocked / 重检 unknown。探测只读、离线。
+  - id: life-piggy-bank-integration
+    name: Life-Piggy-Bank (integration)
+    project_root: /absolute/path/to/Life-Piggy-Bank
+    stories: [examples/stories]
+    mappings: [/absolute/path/to/mappings]
+    companions:
+      backend-python:
+        kind: python
+        interpreter: /absolute/path/to/Life-Piggy-Bank/backend/venv/bin/python
+        bind_env: LPB_INT_PYTHON
+    execution_context:
+      mode: pinned
+      pinned_path: "/absolute/path/to/flutter/bin:/usr/bin:/bin"
+      env:
+        LPB_INT_PYTHON: /absolute/path/to/Life-Piggy-Bank/backend/venv/bin/python
+        LPB_INT_BACKEND_DIR: /absolute/path/to/Life-Piggy-Bank/backend
+      env_from_host: [HOME]

@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from .canon import YamlLoadError, load_yaml_file
+from .companions import CompanionSpec, validate_spec
 from .context import ContextSpec
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -35,11 +36,13 @@ class Workspace:
     mode: str = "inherit"
     env_from_host: List[str] = field(default_factory=list)
     pinned_path: Optional[str] = None
+    companions: Dict[str, CompanionSpec] = field(default_factory=dict)
 
     def context(self) -> ContextSpec:
         """CLI 执行/状态与 Web 只读重检共用的唯一上下文声明 (解析见 flowtree.context.resolve)。"""
         return ContextSpec(mode=self.mode, env=dict(self.env), env_from_host=tuple(self.env_from_host),
-                           pinned_path=self.pinned_path, git_excludes_file=self.git_excludes_file)
+                           pinned_path=self.pinned_path, git_excludes_file=self.git_excludes_file,
+                           companions=dict(self.companions))
 
     def env_names(self) -> List[str]:
         return sorted(self.env)
@@ -104,6 +107,15 @@ def load_workspaces(path: Optional[Path] = None) -> Dict[str, Workspace]:
         if not isinstance(from_host, list) or any(not isinstance(x, str) for x in from_host):
             raise WorkspaceConfigError(f"{where}: execution_context.env_from_host must be a list of variable names")
         ge = ctx.get("git_excludes_file")
+        comps: Dict[str, CompanionSpec] = {}
+        raw_comps = w.get("companions") or {}
+        if not isinstance(raw_comps, dict):
+            raise WorkspaceConfigError(f"{where}: companions must be a mapping of name to declaration")
+        for cname, craw in raw_comps.items():
+            spec, bad = validate_spec(str(cname), craw)
+            if bad:
+                raise WorkspaceConfigError(f"{where}: " + "; ".join(bad))
+            comps[str(cname)] = spec
         out[wid] = Workspace(
             id=wid, name=str(w.get("name") or wid), project_root=resolve(w["project_root"]).resolve(),
             python=str(resolve(w["python"])) if w.get("python") else None,
@@ -111,6 +123,7 @@ def load_workspaces(path: Optional[Path] = None) -> Dict[str, Workspace]:
             mappings=[resolve(x) for x in (w["mappings"] if isinstance(w["mappings"], list) else [w["mappings"]])],
             env={k: str(v) for k, v in env.items()}, git_excludes_file=resolve(ge) if ge else None,
             mode=str(ctx.get("mode") or "inherit"), env_from_host=list(from_host), pinned_path=ctx.get("pinned_path"),
+            companions=comps,
         )
         bad = out[wid].context().validate()
         if bad:

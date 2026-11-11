@@ -24,6 +24,7 @@ from pathlib import Path
 from typing import Dict, List, Mapping, Optional, Tuple
 
 from . import baseline as bl
+from .companions import CompanionSpec
 
 MODES = ("inherit", "pinned")
 DEFAULT_PINNED_PATH = "/usr/bin:/bin:/usr/sbin:/sbin"
@@ -40,6 +41,7 @@ class ContextSpec:
     env_from_host: Tuple[str, ...] = ()                         # 值来自宿主环境 (机密/凭据)
     pinned_path: Optional[str] = None
     git_excludes_file: Optional[Path] = None
+    companions: Dict[str, CompanionSpec] = field(default_factory=dict)   # 伴随运行时声明; 不参与 context_digest
 
     def validate(self) -> List[str]:
         out: List[str] = []
@@ -62,7 +64,8 @@ class ContextSpec:
     def identity(self) -> str:
         """缓存/比较身份: 影响解析结果的全部声明。字面值参与, 但只留在内存。"""
         return repr((self.mode, tuple(sorted(self.env.items())), tuple(sorted(self.env_from_host)),
-                     self.pinned_path, str(self.git_excludes_file) if self.git_excludes_file else None))
+                     self.pinned_path, str(self.git_excludes_file) if self.git_excludes_file else None,
+                     tuple(sorted((n, c.kind, c.interpreter, c.bind_env) for n, c in self.companions.items()))))
 
 
 @dataclass
