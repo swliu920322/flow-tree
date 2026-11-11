@@ -60,4 +60,5 @@ branches:
 invariants:
 - 首次提交及驳回不增加积分
 - 审批后的 B 积分不能混入其他发行人的账本
+- 待审、驳回和重提不增加有效进度、B 余额或 B 奖励流水
 open_questions: []

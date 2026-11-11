@@ -1,6 +1,6 @@
 schema_version: '0.1'
 story: TASK-B-001
-story_digest: sha256:f93734cb97d781fb1b0de0a0c42fd1c7f305d6abeb0f235ac7188055028964bb
+story_digest: sha256:a38d9dbdebc88c9c53d4d904828e89f7a0825bf1fd4d482a7d45c10f36f58e61
 entries:
 - id: M-B-REVIEW
   covers:
@@ -61,3 +61,28 @@ entries:
   env:
     id: life-piggy-bank-flutter-widget
   timeout_s: 300
+- id: M-B-REAL-REVIEW
+  covers:
+  - TASK-B-001.STEP-01
+  - TASK-B-001.STEP-02
+  - TASK-B-001.STEP-03
+  - TASK-B-001.STEP-04
+  - TASK-B-001.CASE-01
+  - TASK-B-001.CASE-02
+  - TASK-B-001.CASE-03
+  level: e2e
+  runner: flutter
+  cwd: .
+  argv:
+  - flutter
+  - test
+  - test_integration/real_backend_b_review_test.dart
+  tests:
+  - nodeid: 'test_integration/real_backend_b_review_test.dart::US-24 提交→待审→驳回→重提→批准: 批准前余额与奖励流水不增加; 批准后奖励只记入原发行人账本一次;
+      重复处理被拒(409)'
+    match: exact
+  env:
+    id: life-piggy-bank-flutter-integration-sqlite
+  timeout_s: 300
+  companions:
+  - backend-python
