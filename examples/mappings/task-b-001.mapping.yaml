@@ -86,3 +86,27 @@ entries:
   timeout_s: 300
   companions:
   - backend-python
+- id: M-B-TWO-UI-REVIEW
+  covers:
+  - TASK-B-001.STEP-01
+  - TASK-B-001.STEP-02
+  - TASK-B-001.STEP-03
+  - TASK-B-001.STEP-04
+  - TASK-B-001.CASE-01
+  - TASK-B-001.CASE-02
+  level: e2e
+  runner: flutter
+  cwd: .
+  argv:
+  - flutter
+  - test
+  - test_integration/real_backend_b_review_two_ui_test.dart
+  tests:
+  - nodeid: 'test_integration/real_backend_b_review_two_ui_test.dart::US-24 双界面: 大宝提交→爸爸界面驳回(填原因)→大宝重提→爸爸界面批准→大宝核对;
+      批准前余额与奖励流水不增加, 批准后只记入爸爸账本一次'
+    match: exact
+  env:
+    id: life-piggy-bank-flutter-integration-sqlite
+  timeout_s: 300
+  companions:
+  - backend-python
