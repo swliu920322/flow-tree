@@ -2,6 +2,7 @@
   --bg: #f6f7f9; --surface: #fff; --text: #1d2330; --muted: #5d6677; --line: #d9dde5;
   --ok: #17794a; --ok-bg: #e4f4ea; --bad: #b3261e; --bad-bg: #fbe7e5; --warn: #8a5a00; --warn-bg: #fdf0d2;
   --info: #1f5fa8; --info-bg: #e3eefa; --idle: #5d6677; --idle-bg: #eceef2; --accent: #2b59c3;
+  --human: #5b36c9; --human-bg: #f1ecfd; --human-line: #b7a3f0;
   --shadow: 0 1px 2px rgba(20,30,50,.08);
 }
 @media (prefers-color-scheme: dark) {
@@ -9,6 +10,7 @@
     --bg: #12151b; --surface: #1a1f28; --text: #e6e9ef; --muted: #9aa4b5; --line: #2c3340;
     --ok: #6fd3a0; --ok-bg: #153024; --bad: #ff8d84; --bad-bg: #3a1c1a; --warn: #f1c066; --warn-bg: #36290f;
     --info: #8db9f0; --info-bg: #16283f; --idle: #9aa4b5; --idle-bg: #232a35; --accent: #8aa8ff;
+    --human: #c3b1ff; --human-bg: #261f45; --human-line: #5a4a9c;
     --shadow: none;
   }
 }
@@ -20,7 +22,8 @@ button { cursor: pointer; }
 .top { position: sticky; top: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center;
   padding: 10px 16px; background: var(--surface); border-bottom: 1px solid var(--line); }
 .brand strong { font-size: 17px; } .brand span { margin-left: 8px; color: var(--muted); font-size: 13px; }
-.field select { padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+.field { display: flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; white-space: nowrap; }
+.field select { min-width: 0; max-width: 100%; padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
 .tabs { display: flex; gap: 6px; flex-wrap: wrap; }
 .tabs button { padding: 4px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--bg); }
 .tabs button[aria-current="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
@@ -90,3 +93,37 @@ pre.art { max-height: 280px; overflow: auto; padding: 8px; margin: 6px 0; backgr
 @media (max-width: 560px) {
   main { padding: 10px; } .stepcard { padding-left: 54px; } .branchbar, .branches { margin-left: 28px; }
 }
+
+/* ---- 视觉聚焦 ----
+   就近: 同一类的东西放在一起, 不同类用留白/边框隔开。
+   层级: 标题最强; 系统结论是中性/语义色; "需要人来做"是唯一使用紫色的元素, 并带 ✋ 与文字"需要你", 不只靠颜色。
+   证据行降为小号灰字, 不与结论抢注意力。 */
+.panels { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+.panel { padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); }
+.panel h2 { margin: 0 0 2px; font-size: 14px; }
+.panel .panel-note { margin: 0 0 6px; font-size: 12.5px; color: var(--muted); }
+.panel .counts { margin-top: 4px; }
+.panel.sys { border-left: 4px solid var(--info); }
+.panel.human { border: 2px solid var(--human-line); background: var(--human-bg); }
+.panel.human h2 { color: var(--human); }
+.mark { margin-right: 4px; }
+.chip.todo { background: var(--surface); color: var(--human); border: 1px solid var(--human-line); font-weight: 600; }
+.stepcard { border-left: 4px solid var(--idle-bg); }
+.stepcard[data-state="ok"] { border-left-color: var(--ok); } .stepcard[data-state="ok"] .num { background: var(--ok-bg); color: var(--ok); }
+.stepcard[data-state="warn"] { border-left-color: var(--warn); } .stepcard[data-state="warn"] .num { background: var(--warn-bg); color: var(--warn); }
+.stepcard[data-state="bad"] { border-left-color: var(--bad); } .stepcard[data-state="bad"] .num { background: var(--bad-bg); color: var(--bad); }
+.stepcard h3 { font-size: 17px; }
+.dims { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: stretch; margin-top: 6px; }
+.dimgroup { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 8px; }
+.dimgroup.sys { background: var(--idle-bg); }
+.dimgroup.human { background: var(--human-bg); border: 1px solid var(--human-line); }
+.dimgroup.sys .dim { background: var(--surface); }
+.glabel { font-size: 11.5px; letter-spacing: .04em; color: var(--muted); margin-right: 2px; }
+.dimgroup.human .glabel { color: var(--human); font-weight: 700; }
+.dim.todo { background: var(--surface); color: var(--human); border: 1px solid var(--human-line); font-weight: 600; }
+.dim.todo b { color: var(--human); }
+.evid { margin-top: 8px; padding-top: 6px; border-top: 1px dashed var(--line); font-size: 12px; color: var(--muted); display: grid; gap: 2px; }
+.evid .glabel { margin-bottom: 1px; }
+.erow { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.erow .chip { font-size: 11.5px; padding: 0 7px; }
+@media (max-width: 700px) { .panels { grid-template-columns: 1fr; } }

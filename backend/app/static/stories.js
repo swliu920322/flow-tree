@@ -90,20 +90,28 @@
       : { t: "草稿", c: "", tip: "尚无规则确认记录" };
     const human = { none: "未验收", pass: "已通过", reject: "已驳回", na: "不适用" }[u.human] || u.human;
     const impl = { unchecked: "未检查" }[u.implementation] || u.implementation;
+    // 就近原则: 机器给出的结论(实现/自动验证)放一组, 只能由人完成的(规则确认/人工验收)放另一组, 用留白+边框+"需要你"区分
+    const ruleTodo = u.rule !== "confirmed" ? " todo" : "";
+    const humanTodo = u.human === "none" ? " todo" : "";
     return h("div", { class: "dims" },
-      h("span", { class: "dim " + rule.c, title: rule.tip }, h("b", { text: "规则" }), rule.t),
-      h("span", { class: "dim", title: "实现检查尚无来源" }, h("b", { text: "实现" }), impl),
-      h("span", { class: "dim " + a.c, title: a.tip }, h("b", { text: "自动验证" }), a.t),
-      h("span", { class: "dim " + (u.human === "pass" ? "ok" : u.human === "reject" ? "bad" : ""), title: "只有真实的人工操作才会改变这里" },
-        h("b", { text: "人工" }), human));
+      h("div", { class: "dimgroup sys" },
+        h("span", { class: "glabel", text: "系统" }),
+        h("span", { class: "dim", title: "实现检查尚无来源" }, h("b", { text: "实现" }), impl),
+        h("span", { class: "dim " + a.c, title: a.tip }, h("b", { text: "自动验证" }), a.t)),
+      h("div", { class: "dimgroup human" },
+        h("span", { class: "glabel" }, h("span", { class: "mark", "aria-hidden": "true", text: "✋" }), "需要你"),
+        h("span", { class: "dim " + rule.c + ruleTodo, title: rule.tip }, h("b", { text: "规则" }), rule.t),
+        h("span", { class: "dim " + (u.human === "pass" ? "ok" : u.human === "reject" ? "bad" : "") + humanTodo, title: "只有真实的人工操作才会改变这里" },
+          h("b", { text: "人工" }), human)));
   }
   function evidenceLine(u) {
     const evs = u.entries.filter((e) => e.has_evidence);
     if (!evs.length) return null;
-    return h("div", { class: "exp" }, evs.map((e) => {
+    return h("div", { class: "evid" }, h("span", { class: "glabel", text: "系统证据" }), evs.map((e) => {
       const v = e.corrupt ? "证据记录损坏" : (VALIDITY[e.validity] || "—");
       const diff = e.aspects ? Object.entries(e.aspects).filter(([, x]) => x !== "same").map(([k, x]) => `${ASPECT[k] || k}${ASPECT_STATE[x]}`) : [];
-      return h("div", {}, h("span", { class: "chip", title: LEVEL_NOTE, text: levelText(e) }), ` 最近执行 ${fmtTime(e.started_at)} · 结果 ${RESULT[e.last_result] || "—"} · 证据${v}${diff.length ? "（" + diff.join("、") + "）" : ""}`,
+      return h("div", { class: "erow" }, h("span", { class: "chip", title: LEVEL_NOTE, text: levelText(e) }),
+        h("span", {}, `最近执行 ${fmtTime(e.started_at)} · 结果 ${RESULT[e.last_result] || "—"} · 证据${v}${diff.length ? "（" + diff.join("、") + "）" : ""}`),
         h("span", { class: "sid", text: ` ${e.entry} ${short(e.run_id, 24)}` }));
     }));
   }
@@ -131,16 +139,18 @@
 
   function renderHead(d) {
     const t = d.totals, s = d.summary;
-    const chips = [
+    const sysChips = [
       h("span", { class: "chip", text: `已定义 ${t.total} 个场景` }),
       h("span", { class: "chip " + (t.automation.passed ? "ok" : ""), text: `本次通过 ${t.automation.passed}` }),
       t.bad ? h("span", { class: "chip bad", text: `失败/错误/阻塞 ${t.bad}` }) : null,
       t.outdated ? h("span", { class: "chip warn", text: `待更新 ${t.outdated}` }) : null,
       t.never_run ? h("span", { class: "chip", text: `未执行 ${t.never_run}` }) : null,
       h("span", { class: "chip", text: `未映射 ${t.automation.unmapped}` }),
-      h("span", { class: "chip " + (t.rule_pending ? "warn" : ""), text: `规则待确认 ${t.rule_pending}` }),
-      h("span", { class: "chip", text: `规则仍为草稿 ${t.total - t.rule_pending}` }),
-      h("span", { class: "chip", text: `人工未验收 ${t.human_unverified}` }),
+    ];
+    const humanChips = [
+      h("span", { class: "chip todo", text: `规则待确认 ${t.rule_pending}` }),
+      h("span", { class: "chip todo", text: `规则仍为草稿 ${t.total - t.rule_pending}` }),
+      h("span", { class: "chip todo", text: `人工未验收 ${t.human_unverified}` }),
     ];
     const reasons = h("ul", {}, [
       `${t.total - t.automation.passed} / ${t.total} 个场景没有“本次有效”的自动验证通过结果（含未映射、未执行、待更新）`,
@@ -164,7 +174,12 @@
       h("h1", {}, d.story.title, h("span", { class: "sid", text: d.story.id })),
       h("div", { class: "meta", text: `${d.story.actor} · ${d.story.goal}` }),
       h("div", { class: "verdict" }, s.complete ? "已完成" : "整体未完成", reasons),
-      h("div", { class: "counts" }, chips), extra));
+      h("div", { class: "panels" },
+        h("section", { class: "panel sys" }, h("h2", { text: "系统自动验证" }),
+          h("p", { class: "panel-note", text: "自动化的结果，只读；不能代替人的确认" }), h("div", { class: "counts" }, sysChips)),
+        h("section", { class: "panel human" }, h("h2", {}, h("span", { class: "mark", "aria-hidden": "true", text: "✋" }), "需要你处理"),
+          h("p", { class: "panel-note", text: "这几项只能由负责人确认，自动化不会代签" }), h("div", { class: "counts" }, humanChips))),
+      extra));
   }
 
   function renderContext(d) {
@@ -177,7 +192,7 @@
       h("dt", { text: "执行上下文" }), h("dd", { text: `${c.execution_context.mode === "pinned" ? "固定环境(pinned)" : "继承宿主环境(inherit)"}；声明变量 ${(c.execution_context.env_names || []).join(", ") || "无"}；取自宿主 ${(c.execution_context.env_from_host || []).join(", ") || "无"}；git excludes ${c.execution_context.git_excludes_configured ? "已配置" : "未配置"}${c.execution_context.git_isolated ? "、git 已隔离" : ""}（只显示名称）` }),
       h("dt", { text: "能否判定有效性" }), h("dd", { text: r.can_determine_validity ? "可以（只读比较）" : `不能：${[...r.undetermined_aspects.map((a) => ASPECT[a] || a), ...r.workspace_problems].join("；")}` }),
     );
-    $("ctx").replaceChildren(h("details", { class: "card ctx", open: o.current === 0 || null },
+    $("ctx").replaceChildren(h("details", { class: "card ctx" },
       h("summary", { text: o.current ? "证据有效性与检查上下文" : "证据有效性与检查上下文：当前没有可确认为有效的证据，点开查看原因" }),
       body, h("p", { text: r.note })));
   }
@@ -196,7 +211,9 @@
       const open = state.opts.all || state.opts.risk || state.expanded.has(st.qid);
       const visible = st.branches.filter((b) => !state.opts.risk || b.unit.automation !== "passed");
       const bs = st.branch_summary;
-      const card = h("button", { type: "button", class: "card stepcard", onclick: () => openUnit("step", st, st) },
+      const stState = st.unit.automation === "passed" ? "ok" : (st.unit.automation === "failed" || st.unit.automation === "error") ? "bad"
+        : outdated(st.unit) || st.unit.automation === "blocked" ? "warn" : "idle";
+      const card = h("button", { type: "button", class: "card stepcard", "data-state": stState, onclick: () => openUnit("step", st, st) },
         h("span", { class: "num", text: String(i + 1) }),
         h("h3", {}, st.action, h("span", { class: "sid", text: st.id })),
         st.expected.length ? h("ul", { class: "exp" }, st.expected.map((e) => h("li", { text: e }))) : null,
