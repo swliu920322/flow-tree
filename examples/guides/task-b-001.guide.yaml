@@ -1,0 +1,56 @@
+schema_version: '0.1'
+story: TASK-B-001
+story_digest: sha256:a38d9dbdebc88c9c53d4d904828e89f7a0825bf1fd4d482a7d45c10f36f58e61
+environment:
+  summary: 隔离验收环境：临时数据库（SQLite，非 MySQL，非真实数据）加一份独立的客户端窗口副本；换账号的方式是右上角点用户名，往下拉点“退出登录”，每次换账号都要重新输入。
+  start:
+  - tools/manual_acceptance/manual_env.sh
+  - tools/manual_acceptance/manual_client.sh start
+accounts:
+- username: kid
+  display_name: 大宝
+  password: Password@123
+  purpose: US-24 执行人（仅隔离验收环境）
+- username: dad
+  display_name: 爸爸
+  password: Password@123
+  purpose: US-24 发行人（仅隔离验收环境）
+- username: mom
+  display_name: 妈妈
+  password: Password@123
+  purpose: US-24 对照发行人，已预置给大宝 5 个 B 分（仅隔离验收环境）
+steps:
+- for: STEP-01
+  account: kid
+  do: 登录 kid，打开任务页
+  see: 有“完成奥数作业 3 页”（+25 B，0/1 次），有“提交”按钮
+  if_not: 原样记录你看到的内容
+- for: STEP-02
+  account: kid
+  do: 点“提交”，写一句凭证，点“确认提交”；再点右上角用户名查看 B 余额
+  see: 任务显示“审批中”，仍是 0/1 次；B 余额：爸爸 0（或不显示），妈妈 5
+  if_not: 余额变了，记为不通过（批准前就发了奖）
+- for: CASE-01
+  account: dad
+  do: 退出，dad 登录；任务页顶部切到“模板与指派 (管理)”，在审批中心点大宝申请的“驳回”，写一个驳回原因，点“确定”。再退出，kid 登录查看任务卡；然后 kid 点“重新提交”，改一下凭证，点“确认提交”
+  see: '驳回后：申请从审批中心消失；kid 的任务卡显示“驳回原因: …”（就是你写的），仍是 0/1 次，按钮变为“重新提交”；爸爸名下仍无余额。重新提交后：任务重新变为“审批中”，仍是 0/1 次，余额仍不变'
+  if_not: 原因没显示或余额变了，记为不通过
+- for: CASE-02
+  account: kid
+  do: kid 点“查看打卡历史”（只查看，不再提交）
+  see: 历史里有两条：第 1 次“已驳回”（含原来的凭证和你写的原因），第 2 次待审；余额仍不变
+  if_not: 第 1 次的内容或原因丢了，记为不通过
+- for: STEP-03
+  account: dad
+  do: 退出，dad 登录，进入管理视角的审批中心，点“批准”
+  see: 只看到新的凭证（不是旧的），点“批准”后该申请消失
+  if_not: 原样记录你看到的内容
+- for: STEP-04
+  account: kid
+  do: 退出，kid 登录；看任务卡，点用户名看余额，关闭账户弹层后，再点“查看打卡历史”
+  see: 任务 1/1 次、已完成；余额：爸爸 25、妈妈 5；历史：第 1 次“已驳回”（含原因）、第 2 次“已通过”
+  if_not: 妈妈的余额变了、爸爸不是 25、历史缺失，记为不通过
+auxiliary:
+- for: CASE-03
+  text: 陌生人试图审批或驳回，应被拒绝
+  note: 客户端没有给陌生人的审批入口，由技术同事通过后台接口核对；请记为“辅助核对”

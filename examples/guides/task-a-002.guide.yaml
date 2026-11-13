@@ -1,0 +1,43 @@
+schema_version: '0.1'
+story: TASK-A-002
+story_digest: sha256:7b6530b12be81ce03eb33d718f1a25a925d699d7ff5880e2613f4f3cea6c97cc
+environment:
+  summary: 隔离验收环境：临时数据库（SQLite，非 MySQL，非真实数据）加一份独立的客户端窗口副本；不会影响你平时使用的账号和数据。
+  start:
+  - tools/manual_acceptance/manual_env.sh
+  - tools/manual_acceptance/manual_client.sh start
+accounts:
+- username: solo
+  display_name: 自律新手
+  password: Password@123
+  purpose: US-23 自律任务（仅隔离验收环境）
+steps:
+- for: STEP-01
+  account: solo
+  do: 登录 solo，打开任务页
+  see: 有“每日喝水两次”，进度 0/2 次，有“打卡”按钮，奖励 +15 A。记下当前 A 积分，叫它 P
+  if_not: 原样记录你看到的内容
+- for: STEP-02
+  account: solo
+  do: 点“打卡”，在弹出框点“确认提交”
+  see: 进度变成 1/2 次；没有显示“已完成”；还能再打卡；A 积分仍是 P
+  if_not: 积分变了或显示已完成，记为不通过并记录
+- for: CASE-01
+  account: solo
+  do: 切到别的页面再回来，或下拉刷新
+  see: 仍是 1/2 次，A 积分仍是 P
+  if_not: 进度变了或多了一次打卡，记录
+- for: STEP-03
+  account: solo
+  do: 再点一次“打卡”并确认
+  see: 进度 2/2 次，显示“已完成”，没有“打卡”按钮；A 积分 = P + 15
+  if_not: 积分增加不是 15，或被加了两次，记为不通过
+- for: CASE-02
+  account: solo
+  do: 想再打卡一次
+  see: 没有入口，或被拒绝；积分不变
+  if_not: 又加了分，记为不通过
+auxiliary:
+- for: STEP-03
+  text: A 流水只多一条 +15，余额与账本一致
+  note: 软件里没有“积分明细”页面，由技术同事通过后台接口核对；请记为“辅助核对”，不要写成你在界面上看到的
