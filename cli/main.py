@@ -117,6 +117,32 @@ def cmd_story_validate(args):
     print("✅ 格式与引用有效" if res["ok"] else "❌ 校验未通过")
     return 0 if res["ok"] else 1
 
+def _render_guide_check(res, as_json):
+    if as_json:
+        print(json.dumps(res, ensure_ascii=False, indent=2))
+        return 0 if res["ok"] else 1
+    if not res["configured"]:
+        print(res["message"])
+        return 0
+    labels = {"current": "当前可用", "stale": "待核对 (故事已变化)", "invalid": "无效"}
+    for sid, g in res["guides"].items():
+        print(f"🧭 {sid}  指引{labels.get(g['status'], g['status'])}  {g['path']}")
+        _print_issues(g["issues"])
+    if res["stories_without_guide"]:
+        print("ℹ️  没有指引的故事 (正常缺省): " + ", ".join(res["stories_without_guide"]))
+    if res["issues"]:
+        print("指引问题:")
+        _print_issues(res["issues"])
+    print("✅ 指引有效" if res["ok"] else "❌ 指引有问题")
+    return 0 if res["ok"] else 1
+
+def cmd_ws_guides(args):
+    ws = _load_ws(args)
+    if ws is None:
+        return 1
+    res = service.check_guides(ws.stories, ws.guides) if ws.guides else service.no_guides_configured()
+    return _render_guide_check(res, args.json)
+
 def cmd_story_plan(args):
     stories, mappings = _story_paths(args)
     res = service.plan(stories, mappings)
@@ -325,6 +351,9 @@ def main(argv=None):
 
     p_ws = subparsers.add_parser("workspace", aliases=["ws"], help="按工作区配置执行/查看: 故事、映射、项目根、解释器、环境由同一配置解析")
     ws_sub = p_ws.add_subparsers(dest="ws_command", required=True)
+    sp = ws_sub.add_parser("guides", help="校验该工作区配置的人工验收指引 (只读; 故事变化后显示待核对)")
+    sp.add_argument("workspace", help="工作区 ID"); sp.add_argument("--config", help="工作区配置路径")
+    sp.add_argument("--json", action="store_true"); sp.set_defaults(func=cmd_ws_guides)
     sp = ws_sub.add_parser("list", help="列出工作区")
     sp.add_argument("--config", help="工作区配置路径 (默认 FLOWTREE_WORKSPACES 或 .flowtree/workspaces.yaml)")
     sp.add_argument("--json", action="store_true"); sp.set_defaults(func=cmd_ws_list)

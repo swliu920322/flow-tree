@@ -127,3 +127,17 @@ pre.art { max-height: 280px; overflow: auto; padding: 8px; margin: 6px 0; backgr
 .erow { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
 .erow .chip { font-size: 11.5px; padding: 0 7px; }
 @media (max-width: 700px) { .panels { grid-template-columns: 1fr; } }
+
+/* 人工验收指引: 只读展示; 紫色 = 需要人来做 */
+.card.guide { border: 2px solid var(--human-line); background: var(--human-bg); padding: 12px 14px; margin-top: 12px; }
+.card.guide h2 { margin: 0 0 6px; font-size: 15px; color: var(--human); }
+.card.guide .guide-warn { color: var(--warn); font-weight: 600; }
+.accounts { border-collapse: collapse; width: 100%; font-size: 13.5px; margin: 6px 0; }
+.accounts th, .accounts td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--human-line); }
+.accounts th { color: var(--muted); font-weight: 600; }
+.guide-step { margin: 6px 0 0 62px; border: 1px solid var(--human-line); background: var(--human-bg); border-radius: 8px; padding: 6px 10px; font-size: 13.5px; }
+.guide-step summary { cursor: pointer; color: var(--human); font-weight: 600; }
+.guide-step .kv { margin: 6px 0 0; }
+.branchwrap .guide-step { margin-left: 0; }
+@media (max-width: 640px) { .guide-step { margin-left: 28px; } .branchwrap .guide-step { margin-left: 0; } .accounts { display: block; overflow-x: auto; } }
+.accounts td.mono, .accounts th { white-space: nowrap; }

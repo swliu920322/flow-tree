@@ -31,6 +31,7 @@ class Workspace:
     python: Optional[str]
     stories: List[Path]
     mappings: List[Path]
+    guides: List[Path] = field(default_factory=list)   # 可选: 人工验收指引目录/文件; 不配置 = 没有指引 (正常缺省)
     env: Dict[str, str] = field(default_factory=dict)
     git_excludes_file: Optional[Path] = None
     mode: str = "inherit"
@@ -48,6 +49,7 @@ class Workspace:
         return sorted(self.env)
 
     def problems(self) -> List[str]:
+        """会阻断执行或使有效性无法判断的配置问题。可选的人工验收指引不在其中: 指引路径问题由指引加载器单独报告。"""
         out = []
         if not self.project_root.is_dir():
             out.append(f"project_root does not exist: {self.project_root}")
@@ -116,11 +118,19 @@ def load_workspaces(path: Optional[Path] = None) -> Dict[str, Workspace]:
             if bad:
                 raise WorkspaceConfigError(f"{where}: " + "; ".join(bad))
             comps[str(cname)] = spec
+        raw_guides = w.get("guides")
+        if raw_guides is None:
+            raw_guides = []
+        elif not isinstance(raw_guides, list):
+            raw_guides = [raw_guides]
+        if any(not isinstance(x, str) or not x for x in raw_guides):
+            raise WorkspaceConfigError(f"{where}: guides must be a path or a list of paths")
         out[wid] = Workspace(
             id=wid, name=str(w.get("name") or wid), project_root=resolve(w["project_root"]).resolve(),
             python=str(resolve(w["python"])) if w.get("python") else None,
             stories=[resolve(x) for x in (w["stories"] if isinstance(w["stories"], list) else [w["stories"]])],
             mappings=[resolve(x) for x in (w["mappings"] if isinstance(w["mappings"], list) else [w["mappings"]])],
+            guides=[resolve(x) for x in raw_guides],
             env={k: str(v) for k, v in env.items()}, git_excludes_file=resolve(ge) if ge else None,
             mode=str(ctx.get("mode") or "inherit"), env_from_host=list(from_host), pinned_path=ctx.get("pinned_path"),
             companions=comps,

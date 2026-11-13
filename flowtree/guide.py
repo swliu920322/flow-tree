@@ -6,7 +6,7 @@
 """
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
@@ -99,8 +99,9 @@ def _check(guide: Guide, path: Path, stories: StorySet, issues: List[Issue]) -> 
     for i, a in enumerate(guide.auxiliary):
         if a.target not in units:
             issues.append(Issue(ERROR, "guide.dangling_ref", f"{guide.story}.guide.auxiliary[{i}]", f"for refers to unknown step/branch {a.target!r}"))
+    covered = seen | {a.target for a in guide.auxiliary}
     for u in loaded.story.unit_ids():
-        if u not in seen:
+        if u not in covered:
             issues.append(Issue(WARNING, "guide.unit_uncovered", f"{guide.story}.{u}", "story step/branch has no guide step"))
     if guide.story_digest != loaded.digest:
         issues.append(Issue(ERROR, "guide.story_changed", where, f"guide was written for story digest {guide.story_digest} but the story is now {loaded.digest}; re-check the guide steps against the story and update story_digest"))
@@ -164,3 +165,26 @@ def load_guides(paths: List[Path], stories: StorySet) -> GuideSet:
             continue
         result.guides[sid] = loaded
     return result
+
+
+def guide_payload(lg: LoadedGuide) -> Dict[str, Any]:
+    """CLI 与 Web 共用的可序列化形式。只有 current 的指引才带出可操作的步骤与账号;
+    待核对 (stale) 或无效 (invalid) 时只给状态与原因, 不当作当前可用的操作步骤。"""
+    out: Dict[str, Any] = {"status": lg.status, "path": str(lg.path), "digest": lg.digest,
+                           "issues": [i.to_dict() for i in lg.issues], "usable": lg.status == CURRENT}
+    if lg.status == CURRENT and lg.guide is not None:
+        g = lg.guide
+        out["environment"] = g.environment.model_dump()
+        out["accounts"] = [a.model_dump() for a in g.accounts]
+        out["steps"] = {s.target: {"account": s.account, "do": s.do, "see": s.see, "if_not": s.if_not} for s in g.steps}
+        aux: Dict[str, List[Dict[str, Any]]] = {}
+        for a in g.auxiliary:
+            aux.setdefault(a.target, []).append({"text": a.text, "note": a.note})
+        out["auxiliary"] = aux
+    return out
+
+
+def unattached_issues(gs: GuideSet) -> List[Issue]:
+    """没有归属到任何已收录指引的问题 (文件损坏、空目录、被拒收的重复指引等); 页面必须显示, 不能静默。"""
+    owned = {id(i) for lg in gs.guides.values() for i in lg.issues}
+    return [i for i in gs.issues if id(i) not in owned]

@@ -129,6 +129,51 @@
   }
 
   // ---------------------------------------------------------------- 渲染
+  // ---------------------------------------------------------------- 人工验收指引 (只读展示, 不是验收结果)
+  function guideIssues(list) {
+    return list && list.length ? h("ul", { class: "exp" }, list.map((i) => h("li", { text: `[${i.code}] ${i.message}` }))) : null;
+  }
+
+  function renderGuideTop(d) {
+    const g = d.guide;
+    if (!g || !g.configured) { $("guideTop").replaceChildren(); return; }
+    const problems = guideIssues(g.problems);
+    const kids = [h("h2", {}, h("span", { class: "mark", "aria-hidden": "true", text: "✋" }), "人工验收指引（只读，不代表已验收）")];
+    if (!g.present) {
+      if (!problems) { $("guideTop").replaceChildren(); return; }
+      kids.push(h("p", { class: "panel-note", text: "该故事没有指引，但指引配置存在以下问题：" }), problems);
+    } else if (!g.usable) {
+      kids.push(h("p", { class: "panel-note guide-warn", text: g.status === "stale"
+        ? "待核对：故事内容在指引写成之后发生了变化，下面的步骤暂不显示，请先核对指引再使用。"
+        : "指引存在问题，不能作为操作步骤使用：" }), guideIssues(g.issues), problems);
+    } else {
+      kids.push(
+        h("p", { class: "panel-note", text: g.environment.summary }),
+        h("table", { class: "accounts" },
+          h("thead", {}, h("tr", {}, ["账号", "名字", "密码", "用在哪里"].map((x) => h("th", { text: x })))),
+          h("tbody", {}, g.accounts.map((a) => h("tr", {}, [a.username, a.display_name, a.password, a.purpose].map((x, i) => h("td", { class: i < 3 ? "mono" : "", text: x })))))),
+        g.environment.start.length ? h("details", {}, h("summary", { text: "给技术同事：启动命令（仅文字，不可在此执行）" }),
+          h("ul", { class: "exp" }, g.environment.start.map((c) => h("li", { class: "mono", text: c })))) : null,
+        problems);
+    }
+    $("guideTop").replaceChildren(h("section", { class: "card guide" }, kids));
+  }
+
+  function guideBlock(node) {
+    const g = node.guide;
+    if (!g) return null;
+    const s = g.step;
+    return h("details", { class: "guide-step" },
+      h("summary", {}, h("span", { class: "mark", "aria-hidden": "true", text: "✋ " }), s ? `人工验收：${s.do}` : "人工验收：辅助核对"),
+      s ? h("dl", { class: "kv" },
+        s.account ? [h("dt", { text: "账号" }), h("dd", { class: "mono", text: s.account })] : null,
+        h("dt", { text: "你做什么" }), h("dd", { text: s.do }),
+        h("dt", { text: "应看到" }), h("dd", { text: s.see }),
+        h("dt", { text: "不一致怎么办" }), h("dd", { text: s.if_not })) : null,
+      g.auxiliary.length ? h("div", { class: "aux" }, h("h4", { text: "辅助核对（不是你在界面上看到的）" }),
+        h("ul", { class: "exp" }, g.auxiliary.map((a) => h("li", { text: a.text + (a.note ? `；${a.note}` : "") })))) : null);
+  }
+
   function renderTabs() {
     const nav = $("storyTabs");
     nav.replaceChildren(...state.stories.map((s) => h("button", {
@@ -225,7 +270,7 @@
           onclick: () => { if (state.expanded.has(st.qid)) state.expanded.delete(st.qid); else state.expanded.add(st.qid); renderFlow(d); },
         }, `${open ? "−" : "+"} ${st.branches.length} 个分支`),
         branchChips(bs)) : null;
-      const list = st.branches.length && open ? h("div", { class: "branches" }, visible.map((b) => h("button", {
+      const list = st.branches.length && open ? h("div", { class: "branches" }, visible.map((b) => h("div", { class: "branchwrap" }, h("button", {
         type: "button", class: "card branch", onclick: () => openUnit("branch", b, st) },
         h("div", { class: "kind", text: KIND[b.kind] || b.kind }),
         h("div", { class: "cond" }, b.condition, h("span", { class: "sid", text: b.id })),
@@ -234,8 +279,8 @@
           b.continuation.type === "rejoin"
             ? `↩ 处理后汇合到第 ${d.flow.findIndex((x) => x.id === b.continuation.target) + 1} 步「${b.continuation.target_action || b.continuation.target}」`
             : "■ 本次操作到此结束"),
-        dimBadges(b.unit), evidenceLine(b.unit)))) : null;
-      rows.push(h("div", { class: "step" }, card, bar, list));
+        dimBadges(b.unit), evidenceLine(b.unit)), guideBlock(b)))) : null;
+      rows.push(h("div", { class: "step" }, card, guideBlock(st), bar, list));
     }
     root.replaceChildren(...(rows.length ? rows : [h("div", { class: "empty", text: "没有需要关注的场景。" })]));
   }
@@ -349,7 +394,7 @@
     try {
       const d = await api(`/api/workspaces/${encodeURIComponent(state.ws)}/stories/${encodeURIComponent(state.story)}${refresh ? "?refresh=true" : ""}`);
       state.detail = d;
-      renderHead(d); renderContext(d); renderFlow(d);
+      renderHead(d); renderGuideTop(d); renderContext(d); renderFlow(d);
     } catch (err) { notice("读取故事失败：" + (err.message || err)); }
   }
   async function loadStories(refresh) {

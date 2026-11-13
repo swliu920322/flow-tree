@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from .guide import GuideSet, guide_payload, load_guides, unattached_issues
 from .issues import Issue, has_errors
 from .mapping import LoadedMapping, load_mappings
 from .status import compare_aspects, compute_units, summarize
@@ -34,6 +35,25 @@ def _load(story_paths: List[Path], mapping_paths: Optional[List[Path]]):
                                     f"entry defined in both {owner[key]} and {m.path}; evidence would be ambiguous"))
             owner.setdefault(key, m.path)
     return stories, mappings, issues
+
+
+def check_guides(story_paths: List[Path], guide_paths: List[Path]) -> Dict[str, Any]:
+    """人工验收指引校验 (CLI 与 Web 共用的同一套加载与校验)。只读; 不影响故事、自动化结果或人工状态。"""
+    stories = load_stories(story_paths)
+    gs: GuideSet = load_guides(guide_paths, stories)
+    rows = {sid: guide_payload(lg) for sid, lg in gs.guides.items()}
+    for r in rows.values():
+        r.pop("steps", None); r.pop("accounts", None); r.pop("auxiliary", None); r.pop("environment", None)
+    other = [i.to_dict() for i in unattached_issues(gs)]
+    errors = any(i["severity"] == "error" for r in rows.values() for i in r["issues"]) or any(i["severity"] == "error" for i in other)
+    return {"ok": not errors, "configured": True, "guides": rows, "issues": other,
+            "stories_without_guide": sorted(set(stories.stories) - set(gs.guides))}
+
+
+def no_guides_configured() -> Dict[str, Any]:
+    """未配置指引是正常缺省, 与有指引时同一结构, 便于机器读取。"""
+    return {"ok": True, "configured": False, "guides": {}, "issues": [], "stories_without_guide": [],
+            "message": "该工作区未配置指引 (guides)；这是正常缺省。"}
 
 
 def validate(story_paths: List[Path], mapping_paths: Optional[List[Path]] = None) -> Dict[str, Any]:

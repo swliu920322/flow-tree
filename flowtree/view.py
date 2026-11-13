@@ -14,6 +14,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from . import service
 from .evidence import EvidenceStore
+from .guide import guide_payload, load_guides, unattached_issues
 from .mapping import load_mappings
 from .status import AttemptState, Auto, compare_aspects, compute_units, evaluate_validity, summarize
 from .story import load_stories
@@ -44,13 +45,16 @@ def _build(ws: Workspace):
     spec_files = service._spec_files(ws.stories, ws.mappings)
     state = service.collect_state(stories, mappings, ws.project_root, ws.python, spec_files,
                                   ws.context(), readonly=True)
-    return {"stories": stories, "mappings": mappings, "issues": issues, "state": state, "problems": ws.problems()}
+    # 指引问题与故事/映射的 issues 分开, 不参与配置问题或自动化判定
+    guides = load_guides(ws.guides, stories) if ws.guides else None
+    return {"stories": stories, "mappings": mappings, "issues": issues, "state": state, "problems": ws.problems(),
+            "guides": guides}
 
 
 def cache_key(ws: Workspace) -> str:
     """缓存身份 = 所有会影响结果的工作区配置, 而不只是 id: 配置变化(换项目/路径/解释器/执行上下文)后旧结果不得复用。
     环境变量只参与键, 不会被存储或输出。"""
-    return repr((ws.id, str(ws.project_root), ws.python, tuple(map(str, ws.stories)), tuple(map(str, ws.mappings)),
+    return repr((ws.id, str(ws.project_root), ws.python, tuple(map(str, ws.stories)), tuple(map(str, ws.mappings)), tuple(map(str, ws.guides)),
                  ws.context().identity()))
 
 
@@ -238,8 +242,10 @@ def story_detail(ws: Workspace, story_id: str, refresh: bool = False) -> Dict[st
         for k, ev in sorted(st.evidence.items())
         if k[0] == story_id and not ev.corrupt and ev.state == AttemptState.COMPLETED and ev.exit_code not in (0, None)
     ]
+    guide_info = _guide_info(ws, data, story_id, flow)
     return {
         "workspace": {"id": ws.id, "name": ws.name},
+        "guide": guide_info,
         "story": {"id": s.id, "title": s.title, "actor": s.actor, "goal": s.goal, "digest": ls.digest,
                   "sources": [x.model_dump() for x in s.sources], "preconditions": s.preconditions,
                   "inputs": s.inputs, "invariants": s.invariants,
@@ -252,6 +258,28 @@ def story_detail(ws: Workspace, story_id: str, refresh: bool = False) -> Dict[st
         "command_failures": command_failures,
         "issues": story_issues,
     }
+
+
+def _guide_info(ws: Workspace, data, story_id: str, flow: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """只读的人工验收指引。configured=False 是正常缺省; 已配置但有问题必须显示, 不能当作没有指引。
+    只有 current 的指引才把步骤挂到对应节点上; 待核对/无效时只给状态与原因。"""
+    gs = data.get("guides")
+    if gs is None:
+        return {"configured": False}
+    lg = gs.get(story_id)
+    out: Dict[str, Any] = {"configured": True, "problems": [i.to_dict() for i in unattached_issues(gs)],
+                           "present": lg is not None}
+    if lg is None:
+        return out
+    payload = guide_payload(lg)
+    out.update({k: payload[k] for k in ("status", "usable", "issues", "environment", "accounts") if k in payload})
+    if payload["usable"]:
+        steps, aux = payload["steps"], payload["auxiliary"]
+        for node in flow:
+            for n in [node] + node["branches"]:
+                if n["id"] in steps or n["id"] in aux:
+                    n["guide"] = {"step": steps.get(n["id"]), "auxiliary": aux.get(n["id"], [])}
+    return out
 
 
 # ---------------------------------------------------------------- 证据详情
