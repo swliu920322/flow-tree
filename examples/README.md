@@ -38,7 +38,7 @@
 
 ## Flutter正式增量（2026-11-10）
 
-接入SAV-001.STEP-02、TASK-A-001.STEP-01、TASK-B-001.STEP-01，三个真实文件40 passed。该轮已映射14/19；另外两个客户端候选待补断言。见[第四批独立报告](../docs/BATCH_04_INDEPENDENT_REVIEW.md)。须使用Flutter固定PATH及HOME声明的pinned工作区，不拼接后端上下文的通过数。
+接入SAV-001.STEP-02、TASK-A-001.STEP-01、TASK-B-001.STEP-01，三个真实文件40 passed。该轮已映射14/19；另外两个客户端候选待补断言。见[第四批独立报告](../docs/archive/batches/BATCH_04_INDEPENDENT_REVIEW.md)。须使用Flutter固定PATH及HOME声明的pinned工作区，不拼接后端上下文的通过数。
 
 ## 请求构造断言补强后（当前）
 
