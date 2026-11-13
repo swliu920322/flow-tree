@@ -1,0 +1,67 @@
+# 文档路径映射
+
+整理日期：2026-11-14。历史正文中的原路径保留写作时点含义；按下表找到现位置。仅调整组织和引用，不重新裁决历史结论。
+
+| 原路径 | 现位置 |
+|---|---|
+| `docs/ACCEPTANCE_CHECKLIST_US23_US24.md` | [docs/samples/life-piggy-bank/ACCEPTANCE_CHECKLIST_US23_US24.md](../samples/life-piggy-bank/ACCEPTANCE_CHECKLIST_US23_US24.md) |
+| `docs/ACCEPTANCE_GUIDE_BUSINESS.md` | [docs/samples/life-piggy-bank/ACCEPTANCE_GUIDE_BUSINESS.md](../samples/life-piggy-bank/ACCEPTANCE_GUIDE_BUSINESS.md) |
+| `docs/AGENT_INGESTION_SPEC.md` | [docs/archive/early-design/AGENT_INGESTION_SPEC.md](early-design/AGENT_INGESTION_SPEC.md) |
+| `docs/AI_CORE_PLAN.md` | [docs/design/AI_CORE_PLAN.md](../design/AI_CORE_PLAN.md) |
+| `docs/AI_CORE_PLAN_REVIEW.md` | [docs/reviews/AI_CORE_PLAN_REVIEW.md](../reviews/AI_CORE_PLAN_REVIEW.md) |
+| `docs/B1_PROJECT_INIT_AI_PROPOSAL.md` | [docs/design/B1_PROJECT_INIT_AI_PROPOSAL.md](../design/B1_PROJECT_INIT_AI_PROPOSAL.md) |
+| `docs/B1_PROJECT_INIT_AI_REVIEW.md` | [docs/reviews/B1_PROJECT_INIT_AI_REVIEW.md](../reviews/B1_PROJECT_INIT_AI_REVIEW.md) |
+| `docs/BACKEND_MAPPING_INCREMENT_2026-11-10.md` | [docs/samples/life-piggy-bank/BACKEND_MAPPING_INCREMENT_2026-11-10.md](../samples/life-piggy-bank/BACKEND_MAPPING_INCREMENT_2026-11-10.md) |
+| `docs/BATCH_01_CLAUDE_DELIVERY.md` | [docs/archive/batches/BATCH_01_CLAUDE_DELIVERY.md](batches/BATCH_01_CLAUDE_DELIVERY.md) |
+| `docs/BATCH_01_CODEX_CLAUDE_2026-11-10.md` | [docs/archive/batches/BATCH_01_CODEX_CLAUDE_2026-11-10.md](batches/BATCH_01_CODEX_CLAUDE_2026-11-10.md) |
+| `docs/BATCH_01_INDEPENDENT_REVIEW.md` | [docs/archive/batches/BATCH_01_INDEPENDENT_REVIEW.md](batches/BATCH_01_INDEPENDENT_REVIEW.md) |
+| `docs/BATCH_02_CLAUDE_DELIVERY.md` | [docs/archive/batches/BATCH_02_CLAUDE_DELIVERY.md](batches/BATCH_02_CLAUDE_DELIVERY.md) |
+| `docs/BATCH_02_CLAUDE_TASK_2026-11-10.md` | [docs/archive/batches/BATCH_02_CLAUDE_TASK_2026-11-10.md](batches/BATCH_02_CLAUDE_TASK_2026-11-10.md) |
+| `docs/BATCH_02_INDEPENDENT_REVIEW.md` | [docs/archive/batches/BATCH_02_INDEPENDENT_REVIEW.md](batches/BATCH_02_INDEPENDENT_REVIEW.md) |
+| `docs/BATCH_03_CLAUDE_DELIVERY.md` | [docs/archive/batches/BATCH_03_CLAUDE_DELIVERY.md](batches/BATCH_03_CLAUDE_DELIVERY.md) |
+| `docs/BATCH_03_CLAUDE_TASK_2026-11-10.md` | [docs/archive/batches/BATCH_03_CLAUDE_TASK_2026-11-10.md](batches/BATCH_03_CLAUDE_TASK_2026-11-10.md) |
+| `docs/BATCH_03_INDEPENDENT_REVIEW.md` | [docs/archive/batches/BATCH_03_INDEPENDENT_REVIEW.md](batches/BATCH_03_INDEPENDENT_REVIEW.md) |
+| `docs/BATCH_04_CLAUDE_DELIVERY.md` | [docs/archive/batches/BATCH_04_CLAUDE_DELIVERY.md](batches/BATCH_04_CLAUDE_DELIVERY.md) |
+| `docs/BATCH_04_CLAUDE_TASK_2026-11-10.md` | [docs/archive/batches/BATCH_04_CLAUDE_TASK_2026-11-10.md](batches/BATCH_04_CLAUDE_TASK_2026-11-10.md) |
+| `docs/BATCH_04_INDEPENDENT_REVIEW.md` | [docs/archive/batches/BATCH_04_INDEPENDENT_REVIEW.md](batches/BATCH_04_INDEPENDENT_REVIEW.md) |
+| `docs/BATCH_05_CLAUDE_DELIVERY.md` | [docs/archive/batches/BATCH_05_CLAUDE_DELIVERY.md](batches/BATCH_05_CLAUDE_DELIVERY.md) |
+| `docs/BATCH_05_CLAUDE_TASK_2026-11-11.md` | [docs/archive/batches/BATCH_05_CLAUDE_TASK_2026-11-11.md](batches/BATCH_05_CLAUDE_TASK_2026-11-11.md) |
+| `docs/BATCH_05_INDEPENDENT_REVIEW.md` | [docs/archive/batches/BATCH_05_INDEPENDENT_REVIEW.md](batches/BATCH_05_INDEPENDENT_REVIEW.md) |
+| `docs/BATCH_06_CLAUDE_DELIVERY.md` | [docs/archive/batches/BATCH_06_CLAUDE_DELIVERY.md](batches/BATCH_06_CLAUDE_DELIVERY.md) |
+| `docs/BATCH_07_CODEX_STORY_REVIEW.md` | [docs/archive/batches/BATCH_07_CODEX_STORY_REVIEW.md](batches/BATCH_07_CODEX_STORY_REVIEW.md) |
+| `docs/BATCH_07_COMMIT_MANIFEST.md` | [docs/archive/batches/BATCH_07_COMMIT_MANIFEST.md](batches/BATCH_07_COMMIT_MANIFEST.md) |
+| `docs/BATCH_07_COMPANIONS_INDEPENDENT_REVIEW.md` | [docs/archive/batches/BATCH_07_COMPANIONS_INDEPENDENT_REVIEW.md](batches/BATCH_07_COMPANIONS_INDEPENDENT_REVIEW.md) |
+| `docs/BATCH_07_RUNTIME_BINDING_PROPOSAL.md` | [docs/archive/batches/BATCH_07_RUNTIME_BINDING_PROPOSAL.md](batches/BATCH_07_RUNTIME_BINDING_PROPOSAL.md) |
+| `docs/BATCH_07_STORY_SOURCES_AND_QUESTIONS.md` | [docs/archive/batches/BATCH_07_STORY_SOURCES_AND_QUESTIONS.md](batches/BATCH_07_STORY_SOURCES_AND_QUESTIONS.md) |
+| `docs/BATCH_07_US23_INDEPENDENT_ACCEPTANCE.md` | [docs/archive/batches/BATCH_07_US23_INDEPENDENT_ACCEPTANCE.md](batches/BATCH_07_US23_INDEPENDENT_ACCEPTANCE.md) |
+| `docs/BATCH_07_US23_WALKTHROUGH.md` | [docs/archive/batches/BATCH_07_US23_WALKTHROUGH.md](batches/BATCH_07_US23_WALKTHROUGH.md) |
+| `docs/BATCH_08_COMMIT_MANIFEST.md` | [docs/archive/batches/BATCH_08_COMMIT_MANIFEST.md](batches/BATCH_08_COMMIT_MANIFEST.md) |
+| `docs/BATCH_08_US24_CODEX_REVIEW.md` | [docs/archive/batches/BATCH_08_US24_CODEX_REVIEW.md](batches/BATCH_08_US24_CODEX_REVIEW.md) |
+| `docs/BATCH_08_US24_INDEPENDENT_ACCEPTANCE.md` | [docs/archive/batches/BATCH_08_US24_INDEPENDENT_ACCEPTANCE.md](batches/BATCH_08_US24_INDEPENDENT_ACCEPTANCE.md) |
+| `docs/BATCH_08_US24_PLAN.md` | [docs/archive/batches/BATCH_08_US24_PLAN.md](batches/BATCH_08_US24_PLAN.md) |
+| `docs/BATCH_09_INDEPENDENT_REVIEW.md` | [docs/archive/batches/BATCH_09_INDEPENDENT_REVIEW.md](batches/BATCH_09_INDEPENDENT_REVIEW.md) |
+| `docs/BATCH_10_ISSUER_UI_INDEPENDENT_ACCEPTANCE.md` | [docs/archive/batches/BATCH_10_ISSUER_UI_INDEPENDENT_ACCEPTANCE.md](batches/BATCH_10_ISSUER_UI_INDEPENDENT_ACCEPTANCE.md) |
+| `docs/BATCH_10_ISSUER_UI_PLAN.md` | [docs/archive/batches/BATCH_10_ISSUER_UI_PLAN.md](batches/BATCH_10_ISSUER_UI_PLAN.md) |
+| `docs/DATA_CONTRACT.md` | [docs/archive/early-design/DATA_CONTRACT.md](early-design/DATA_CONTRACT.md) |
+| `docs/DESIGN_PRINCIPLES.md` | [docs/product/DESIGN_PRINCIPLES.md](../product/DESIGN_PRINCIPLES.md) |
+| `docs/FIRST_RELEASE_CARD.md` | [docs/delivery/FIRST_RELEASE_CARD.md](../delivery/FIRST_RELEASE_CARD.md) |
+| `docs/INTRUSION_FACTS_LPB.md` | [docs/samples/life-piggy-bank/INTRUSION_FACTS_LPB.md](../samples/life-piggy-bank/INTRUSION_FACTS_LPB.md) |
+| `docs/MANUAL_ACCEPTANCE_GUIDES_STEP1_REVIEW.md` | [docs/reviews/MANUAL_ACCEPTANCE_GUIDES_STEP1_REVIEW.md](../reviews/MANUAL_ACCEPTANCE_GUIDES_STEP1_REVIEW.md) |
+| `docs/MANUAL_ACCEPTANCE_GUIDES_STEP2_REVIEW.md` | [docs/reviews/MANUAL_ACCEPTANCE_GUIDES_STEP2_REVIEW.md](../reviews/MANUAL_ACCEPTANCE_GUIDES_STEP2_REVIEW.md) |
+| `docs/MANUAL_ACCEPTANCE_PAGE_PROPOSAL.md` | [docs/archive/early-design/MANUAL_ACCEPTANCE_PAGE_PROPOSAL.md](early-design/MANUAL_ACCEPTANCE_PAGE_PROPOSAL.md) |
+| `docs/MANUAL_ACCEPTANCE_PAGE_REVIEW.md` | [docs/reviews/MANUAL_ACCEPTANCE_PAGE_REVIEW.md](../reviews/MANUAL_ACCEPTANCE_PAGE_REVIEW.md) |
+| `docs/MANUAL_ACCEPTANCE_SETUP.md` | [docs/samples/life-piggy-bank/MANUAL_ACCEPTANCE_SETUP.md](../samples/life-piggy-bank/MANUAL_ACCEPTANCE_SETUP.md) |
+| `docs/MANUAL_ACCEPTANCE_SETUP_REVIEW.md` | [docs/reviews/MANUAL_ACCEPTANCE_SETUP_REVIEW.md](../reviews/MANUAL_ACCEPTANCE_SETUP_REVIEW.md) |
+| `docs/MANUAL_FINDINGS_US24.md` | [docs/samples/life-piggy-bank/MANUAL_FINDINGS_US24.md](../samples/life-piggy-bank/MANUAL_FINDINGS_US24.md) |
+| `docs/OPEN_QUESTIONS.md` | [docs/samples/life-piggy-bank/OPEN_QUESTIONS.md](../samples/life-piggy-bank/OPEN_QUESTIONS.md) |
+| `docs/OWNER_DISCUSSION_FOR_CODEX_2026-11-12.md` | [docs/archive/discussions/OWNER_DISCUSSION_FOR_CODEX_2026-11-12.md](discussions/OWNER_DISCUSSION_FOR_CODEX_2026-11-12.md) |
+| `docs/PRD.md` | [docs/archive/early-design/PRD.md](early-design/PRD.md) |
+| `docs/PROJECT_CONFIG_SPEC.md` | [docs/archive/early-design/PROJECT_CONFIG_SPEC.md](early-design/PROJECT_CONFIG_SPEC.md) |
+| `docs/PROJECT_PROPOSAL.md` | [docs/archive/early-design/PROJECT_PROPOSAL.md](early-design/PROJECT_PROPOSAL.md) |
+| `docs/REAL_PROJECT_INTEGRATION_2026-11-10.md` | [docs/samples/life-piggy-bank/REAL_PROJECT_INTEGRATION_2026-11-10.md](../samples/life-piggy-bank/REAL_PROJECT_INTEGRATION_2026-11-10.md) |
+| `docs/RULE_CONFIRMATION_US23_US24.md` | [docs/samples/life-piggy-bank/RULE_CONFIRMATION_US23_US24.md](../samples/life-piggy-bank/RULE_CONFIRMATION_US23_US24.md) |
+| `docs/SESSION_HANDOFF_2026-11-10.md` | [docs/archive/discussions/SESSION_HANDOFF_2026-11-10.md](discussions/SESSION_HANDOFF_2026-11-10.md) |
+| `docs/STORIES_VISUAL_INDEPENDENT_REVIEW_2026-11-12.md` | [docs/reviews/STORIES_VISUAL_INDEPENDENT_REVIEW_2026-11-12.md](../reviews/STORIES_VISUAL_INDEPENDENT_REVIEW_2026-11-12.md) |
+| `docs/STORY_ACCEPTANCE_SPEC.md` | [docs/product/STORY_ACCEPTANCE_SPEC.md](../product/STORY_ACCEPTANCE_SPEC.md) |
+| `docs/WBS_PLAN.md` | [docs/archive/early-design/WBS_PLAN.md](early-design/WBS_PLAN.md) |
+| `docs/steps/P1_1_TASK.md` | [docs/delivery/steps/P1_1_TASK.md](../delivery/steps/P1_1_TASK.md) |

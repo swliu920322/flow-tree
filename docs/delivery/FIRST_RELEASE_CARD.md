@@ -4,7 +4,7 @@
 
 本次已拆出 [P1-1 实施任务](steps/P1_1_TASK.md)，由负责人要求重新安排后限定启动；本卡的其余范围仍是后续建议，不是全部一次实施。
 
-阅读入口：[文档导航](README.md)。方向依据：[设计原则](DESIGN_PRINCIPLES.md)；技术细节仍在 [B1 提案](B1_PROJECT_INIT_AI_PROPOSAL.md) 与 [AI 规划](AI_CORE_PLAN.md) 中评审。本卡只收敛“交付什么、如何验收”，不另起一套技术设计。
+阅读入口：[文档导航](../README.md)。方向依据：[设计原则](../product/DESIGN_PRINCIPLES.md)；技术细节仍在 [B1 提案](../design/B1_PROJECT_INIT_AI_PROPOSAL.md) 与 [AI 规划](../design/AI_CORE_PLAN.md) 中评审。本卡只收敛“交付什么、如何验收”，不另起一套技术设计。
 
 ## 1. 为谁解决什么问题
 

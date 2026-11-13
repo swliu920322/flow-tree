@@ -34,7 +34,7 @@
 
 ## 后端增量接入（2026-11-10）
 
-已补 TASK-A-001.CASE-02 和 TASK-B-001.CASE-02，原项目最小真实执行 2 passed。该轮19个单元中已映射11、未映射8；映射数不等于当前有效通过数。见 [增量记录](../docs/BACKEND_MAPPING_INCREMENT_2026-11-10.md)。
+已补 TASK-A-001.CASE-02 和 TASK-B-001.CASE-02，原项目最小真实执行 2 passed。该轮19个单元中已映射11、未映射8；映射数不等于当前有效通过数。见 [增量记录](../docs/samples/life-piggy-bank/BACKEND_MAPPING_INCREMENT_2026-11-10.md)。
 
 ## Flutter正式增量（2026-11-10）
 

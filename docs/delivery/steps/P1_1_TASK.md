@@ -2,7 +2,7 @@
 
 日期：2026-11-14。任务整理：Codex，依据负责人本次“整理归档后重新安排”的指示。**本任务仅安排离线实施与复验，不授权真实 API 调用、LPB 修改或 push。**
 
-先读：[文档入口](../README.md)、[第一版交付卡](../FIRST_RELEASE_CARD.md)、[总体规划第 2 版](../AI_CORE_PLAN.md)、[B1 安全设计](../B1_PROJECT_INIT_AI_PROPOSAL.md)。本任务解决这些提案对本批范围的冲突；其他阶段仍是规划，不自动展开。
+先读：[文档入口](../../README.md)、[第一版交付卡](../FIRST_RELEASE_CARD.md)、[总体规划第 2 版](../../design/AI_CORE_PLAN.md)、[B1 安全设计](../../design/B1_PROJECT_INIT_AI_PROPOSAL.md)。本任务解决这些提案对本批范围的冲突；其他阶段仍是规划，不自动展开。
 
 ## 用户本批得到什么
 

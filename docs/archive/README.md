@@ -1,8 +1,29 @@
-# 历史批次归档
+# 历史材料：解释沿革，不安排下一步
 
-整理日期：2026-11-14。这里只保存第 1～10 批的过程材料，不作为当前任务入口。现行入口见 [文档导航](../README.md)，下一批见 [P1-1 任务书](../steps/P1_1_TASK.md)。
+整理日期：2026-11-14。当前入口见 [文档导航](../README.md)，具体任务见 [P1-1](../delivery/steps/P1_1_TASK.md)。旧路径见 [路径映射](PATH_MAP.md)。历史文件保留原结论及写作时点状态，只调整 Markdown 链接。
 
-文件正文的历史结论和写作时点状态保留；仅为搬迁调整 Markdown 链接；正文、代码块和提交清单中的旧文件名保留为历史事实，可用本页路径映射查找。原路径统一为 `docs/<文件名>`，现路径为 `docs/archive/batches/<文件名>`。不包含运行产物，不删除用户文件。
+## 早期设计参考
+
+以下材料与旧电路、自报或早期多角色规划有关；不是本批实施依据。不能仅因标题写“锁定/定稿”就视为当前契约。未冲突的背景仍可参考。
+
+- [PRD.md](early-design/PRD.md)
+- [PROJECT_PROPOSAL.md](early-design/PROJECT_PROPOSAL.md)
+- [PROJECT_CONFIG_SPEC.md](early-design/PROJECT_CONFIG_SPEC.md)
+- [DATA_CONTRACT.md](early-design/DATA_CONTRACT.md)
+- [AGENT_INGESTION_SPEC.md](early-design/AGENT_INGESTION_SPEC.md)
+- [WBS_PLAN.md](early-design/WBS_PLAN.md)
+- [MANUAL_ACCEPTANCE_PAGE_PROPOSAL.md](early-design/MANUAL_ACCEPTANCE_PAGE_PROPOSAL.md)
+
+## 交接和讨论快照
+
+- [2026-11-10 交接](discussions/SESSION_HANDOFF_2026-11-10.md)
+- [2026-11-12 负责人讨论](discussions/OWNER_DISCUSSION_FOR_CODEX_2026-11-12.md)
+
+后来的明确决定可能改变其中的建议或“下一步”。
+
+## 第 1～10 批过程
+
+任务书、交付、独立反例、提交清单一起保留。正文里的旧文件清单与路径保留原样，可用路径映射查找。
 
 | 批次 | 文档 |
 |---|---|
